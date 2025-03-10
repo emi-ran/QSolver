@@ -37,7 +37,9 @@ namespace QSolver
     {
         private readonly string apiKey;
         private readonly HttpClient httpClient;
-        private const string API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+        private const string API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+        private const string OCR_MODEL = "gemini-2.0-flash";
+        private const string SOLVER_MODEL = "gemini-2.0-flash";
 
         public GeminiService(string apiKey)
         {
@@ -45,14 +47,10 @@ namespace QSolver
             this.httpClient = new HttpClient();
         }
 
-        public async Task<string> AnalyzeImage(string imagePath)
+        public async Task<string> AnalyzeImage(string base64Image)
         {
             try
             {
-                // Resmi base64'e çevir
-                byte[] imageBytes = File.ReadAllBytes(imagePath);
-                string base64Image = Convert.ToBase64String(imageBytes);
-
                 // API isteği için JSON hazırla
                 var request = new GeminiRequest
                 {
@@ -62,7 +60,7 @@ namespace QSolver
                         {
                             parts = new[]
                             {
-                                new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme." },
+                                new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme. Eğer görselde hiçbir yazı yoksa sadece 'NO_TEXT_FOUND' yaz." },
                                 new Part
                                 {
                                     inline_data = new InlineData
@@ -80,12 +78,20 @@ namespace QSolver
                 var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
 
                 // API'ye istek gönder
-                var response = await httpClient.PostAsync($"{API_URL}?key={apiKey}", content);
+                var response = await httpClient.PostAsync($"{API_URL_BASE}/{OCR_MODEL}:generateContent?key={apiKey}", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorContent = await response.Content.ReadAsStringAsync();
+                    return $"API hatası: HTTP {(int)response.StatusCode} - {errorContent}";
+                }
+
                 var jsonResponse = await response.Content.ReadAsStringAsync();
 
-                // Yanıtı işle (basit bir şekilde)
+                // Yanıtı işle
                 using JsonDocument document = JsonDocument.Parse(jsonResponse);
                 var root = document.RootElement;
+
                 if (root.TryGetProperty("candidates", out var candidates) &&
                     candidates.GetArrayLength() > 0 &&
                     candidates[0].TryGetProperty("content", out var contentElement) &&
@@ -93,14 +99,129 @@ namespace QSolver
                     parts.GetArrayLength() > 0 &&
                     parts[0].TryGetProperty("text", out var textElement))
                 {
-                    return textElement.GetString() ?? "Yanıt alınamadı.";
+                    string result = textElement.GetString() ?? "Yanıt alınamadı.";
+
+                    // ``` işaretlerini kaldır
+                    result = result.Replace("```", "");
+
+                    // Başındaki "text" kelimesini kaldır
+                    if (result.StartsWith("text", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result = result.Substring(4).TrimStart();
+                    }
+
+                    // Görselde yazı yoksa özel JSON yanıtı döndür
+                    if (result.Contains("NO_TEXT_FOUND") ||
+                        string.IsNullOrWhiteSpace(result) ||
+                        result.Contains("görselde yazı yok", StringComparison.OrdinalIgnoreCase) ||
+                        result.Contains("görselde metin yok", StringComparison.OrdinalIgnoreCase) ||
+                        result.Contains("görselde hiçbir yazı yok", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"question_not_found\":\"try_again\"}";
+                    }
+
+                    return string.IsNullOrWhiteSpace(result) ? "Görselde metin bulunamadı." : result;
                 }
 
-                return "Yanıt işlenemedi.";
+                return "Yanıt işlenemedi. API yanıtı beklenen formatta değil.";
             }
             catch (Exception ex)
             {
                 return $"Hata oluştu: {ex.Message}";
+            }
+        }
+
+        public async Task<(string fullResponse, string answer)> SolveQuestion(string questionText)
+        {
+            try
+            {
+                // API isteği için JSON hazırla
+                var request = new GeminiRequest
+                {
+                    contents = new[]
+                    {
+                        new Content
+                        {
+                            parts = new[]
+                            {
+                                new Part
+                                {
+                                    text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım detaylıca çöz. 
+Çözümün sonunda hangi şıkkın doğru olduğunu belirt. 
+Cevabını şu formatta bitir: { ""solved"":""true"", ""answer"":""X"" } (X yerine doğru şıkkı yaz, eğer çözemediysen solved kısmını false yap).
+
+Soru:
+" + questionText
+                                }
+                            }
+                        }
+                    }
+                };
+
+                string jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                // API'ye istek gönder
+                var response = await httpClient.PostAsync($"{API_URL_BASE}/{SOLVER_MODEL}:generateContent?key={apiKey}", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return ("API hatası: " + response.StatusCode, "Hata");
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+
+                // Yanıtı işle
+                using JsonDocument document = JsonDocument.Parse(jsonResponse);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("candidates", out var candidates) &&
+                    candidates.GetArrayLength() > 0 &&
+                    candidates[0].TryGetProperty("content", out var contentElement) &&
+                    contentElement.TryGetProperty("parts", out var parts) &&
+                    parts.GetArrayLength() > 0 &&
+                    parts[0].TryGetProperty("text", out var textElement))
+                {
+                    string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
+                    string answer = ExtractAnswer(fullResponse);
+                    return (fullResponse, answer);
+                }
+
+                return ("Yanıt işlenemedi.", "Hata");
+            }
+            catch (Exception ex)
+            {
+                return ($"Hata oluştu: {ex.Message}", "Hata");
+            }
+        }
+
+        private string ExtractAnswer(string response)
+        {
+            try
+            {
+                // JSON formatındaki cevabı bul
+                int jsonStart = response.LastIndexOf('{');
+                int jsonEnd = response.LastIndexOf('}');
+
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    string jsonPart = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+
+                    // JSON'ı parse et
+                    using JsonDocument document = JsonDocument.Parse(jsonPart);
+                    var root = document.RootElement;
+
+                    if (root.TryGetProperty("answer", out var answerElement))
+                    {
+                        return answerElement.GetString() ?? "?";
+                    }
+                }
+
+                return "?";
+            }
+            catch
+            {
+                return "?";
             }
         }
     }
@@ -110,18 +231,54 @@ namespace QSolver
         private readonly Label thinkingLabel;
         private readonly Label resultLabel;
         private readonly Button confirmButton;
+        private readonly Button editButton;
+        private readonly Button solutionStepsButton;
         private readonly System.Windows.Forms.Timer animationTimer;
         private int animationDots = 0;
+
+        private string questionText = string.Empty;
+        private string solutionText = string.Empty;
+        private string answerLetter = string.Empty;
+        private bool isQuestionEdited = false;
+
+        private enum FormState
+        {
+            Analyzing,
+            Analyzed,
+            Solving,
+            Solved
+        }
+
+        private FormState currentState;
 
         public ResultForm(Point location, Task<string> analysisTask)
         {
             // Form özellikleri
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.Manual;
-            this.Location = location;
-            this.Size = new Size(200, 100);
+            this.Size = new Size(250, 120);
             this.TopMost = true;
             this.ShowInTaskbar = false;
+
+            // Formun ekran sınırları içinde kalmasını sağla
+            Rectangle screenBounds = Screen.FromPoint(location).WorkingArea;
+            int x = location.X;
+            int y = location.Y;
+
+            // Sağ kenar kontrolü
+            if (x + this.Width > screenBounds.Right)
+            {
+                x = screenBounds.Right - this.Width;
+            }
+
+            // Alt kenar kontrolü
+            if (y + this.Height > screenBounds.Bottom)
+            {
+                y = screenBounds.Bottom - this.Height;
+            }
+
+            this.Location = new Point(x, y);
+            currentState = FormState.Analyzing;
 
             // Düşünme etiketi
             thinkingLabel = new Label
@@ -136,7 +293,7 @@ namespace QSolver
             // Sonuç etiketi (başlangıçta gizli)
             resultLabel = new Label
             {
-                Text = "Soru Çözülüyor",
+                Text = "Soru Analiz Edildi",
                 AutoSize = true,
                 Location = new Point(10, 10),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -155,7 +312,33 @@ namespace QSolver
                 Visible = false
             };
 
-            confirmButton.Click += (s, e) => this.Close();
+            // Düzenleme butonu (başlangıçta gizli)
+            editButton = new Button
+            {
+                Text = "Soruyu Düzenle",
+                Size = new Size(120, 30),
+                Location = new Point(120, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Orange,
+                ForeColor = Color.White,
+                Visible = false
+            };
+
+            // Çözüm adımları butonu (başlangıçta gizli)
+            solutionStepsButton = new Button
+            {
+                Text = "Çözüm Adımları",
+                Size = new Size(120, 30),
+                Location = new Point(120, 40),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Green,
+                ForeColor = Color.White,
+                Visible = false
+            };
+
+            confirmButton.Click += ConfirmButton_Click;
+            editButton.Click += EditButton_Click;
+            solutionStepsButton.Click += SolutionStepsButton_Click;
 
             // Animasyon için timer
             animationTimer = new System.Windows.Forms.Timer
@@ -174,6 +357,8 @@ namespace QSolver
             this.Controls.Add(thinkingLabel);
             this.Controls.Add(resultLabel);
             this.Controls.Add(confirmButton);
+            this.Controls.Add(editButton);
+            this.Controls.Add(solutionStepsButton);
 
             // Form stil ayarları
             this.BackColor = Color.White;
@@ -185,18 +370,254 @@ namespace QSolver
             WaitForAnalysis(analysisTask);
         }
 
+        private void ConfirmButton_Click(object? sender, EventArgs e)
+        {
+            if (currentState == FormState.Analyzed)
+            {
+                // Soruyu çözmeye başla
+                StartSolvingQuestion();
+            }
+            else if (currentState == FormState.Solved)
+            {
+                // İşlemi tamamla
+                this.Close();
+            }
+        }
+
+        private void EditButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Düzenleme formunu göstermeden önce mevcut formu geçici olarak gizle
+                this.Visible = false;
+
+                using (var editForm = new QuestionEditForm(questionText))
+                {
+                    if (editForm.ShowDialog() == DialogResult.OK)
+                    {
+                        questionText = editForm.EditedQuestionText;
+                        isQuestionEdited = editForm.IsEdited;
+
+                        // Düzenleme başarılı olduğunda bilgi ver
+                        MessageBox.Show("Soru metni başarıyla düzenlendi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+
+                // Düzenleme işlemi bittikten sonra formu tekrar göster
+                this.Visible = true;
+                this.BringToFront();
+            }
+            catch (Exception ex)
+            {
+                this.Visible = true; // Hata durumunda da formu göster
+                MessageBox.Show($"Soru düzenlenirken hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SolutionStepsButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Çözüm adımları formunu göstermeden önce mevcut formu geçici olarak gizle
+                this.Visible = false;
+
+                var solutionForm = new SolutionStepsForm(solutionText);
+                solutionForm.FormClosed += (s, args) =>
+                {
+                    // Çözüm adımları formu kapandığında ana formu tekrar göster
+                    this.Visible = true;
+                    this.BringToFront();
+                };
+                solutionForm.Show();
+            }
+            catch (Exception ex)
+            {
+                this.Visible = true; // Hata durumunda da formu göster
+                MessageBox.Show($"Çözüm adımları gösterilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private async void WaitForAnalysis(Task<string> analysisTask)
         {
-            await analysisTask;
-
-            // Analiz tamamlandığında UI'ı güncelle
-            this.Invoke((MethodInvoker)delegate
+            try
             {
-                animationTimer.Stop();
-                thinkingLabel.Visible = false;
-                resultLabel.Visible = true;
-                confirmButton.Visible = true;
-            });
+                questionText = await analysisTask;
+
+                // Özel JSON yanıtını kontrol et
+                if (questionText.Contains("\"question_not_found\""))
+                {
+                    questionText = "Görselde soru bulunamadı.";
+
+                    if (this.IsHandleCreated)
+                    {
+                        this.Invoke((MethodInvoker)delegate
+                        {
+                            animationTimer.Stop();
+                            thinkingLabel.Visible = false;
+                            resultLabel.Text = questionText;
+                            resultLabel.Visible = true;
+                            confirmButton.Visible = false;
+                            editButton.Visible = false;
+
+                            // 2 saniye sonra formu kapat
+                            var closeTimer = new System.Windows.Forms.Timer();
+                            closeTimer.Interval = 2000;
+                            closeTimer.Tick += (s, e) =>
+                            {
+                                closeTimer.Stop();
+                                this.Close();
+                            };
+                            closeTimer.Start();
+                        });
+                    }
+                    return;
+                }
+
+                // Eğer yanıt boş veya hata içeriyorsa
+                if (string.IsNullOrEmpty(questionText) || questionText.StartsWith("Hata oluştu:") || questionText == "Yanıt işlenemedi.")
+                {
+                    questionText = "Görsel analiz edilemedi. Lütfen tekrar deneyin veya metni manuel olarak düzenleyin.";
+                }
+
+                // Analiz tamamlandığında UI'ı güncelle
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+                        resultLabel.Visible = true;
+                        confirmButton.Visible = true;
+                        editButton.Visible = true;
+
+                        currentState = FormState.Analyzed;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Hata durumunda UI'ı güncelle
+                questionText = $"Hata oluştu: {ex.Message}";
+
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+                        resultLabel.Text = "Analiz sırasında hata oluştu";
+                        resultLabel.Visible = true;
+                        confirmButton.Visible = true;
+                        editButton.Visible = true;
+
+                        currentState = FormState.Analyzed;
+                    });
+                }
+            }
+        }
+
+        private async void StartSolvingQuestion()
+        {
+            try
+            {
+                currentState = FormState.Solving;
+
+                // UI'ı güncelle
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        thinkingLabel.Text = "Soru çözülüyor...";
+                        thinkingLabel.Visible = true;
+                        resultLabel.Visible = false;
+                        confirmButton.Visible = false;
+                        editButton.Visible = false;
+                        solutionStepsButton.Visible = false;
+                        animationTimer.Start();
+                    });
+                }
+
+                // Soruyu çöz
+                var (fullResponse, answer) = await Program.GetGeminiService().SolveQuestion(questionText);
+
+                // JSON formatında cevap var mı kontrol et
+                if (answer == "?" || answer == "Hata")
+                {
+                    // JSON formatında cevap yoksa tekrar dene
+                    if (this.IsHandleCreated)
+                    {
+                        this.Invoke((MethodInvoker)delegate
+                        {
+                            thinkingLabel.Text = "Geçersiz istek, tekrar deneniyor...";
+                        });
+                    }
+
+                    // Tekrar dene
+                    (fullResponse, answer) = await Program.GetGeminiService().SolveQuestion(questionText);
+
+                    // Hala JSON formatında cevap yoksa
+                    if (answer == "?" || answer == "Hata")
+                    {
+                        solutionText = fullResponse;
+                        answerLetter = "Yapay zeka gerekli cevabı veremedi";
+
+                        if (this.IsHandleCreated)
+                        {
+                            this.Invoke((MethodInvoker)delegate
+                            {
+                                animationTimer.Stop();
+                                thinkingLabel.Visible = false;
+                                resultLabel.Text = "Cevap: " + answerLetter;
+                                resultLabel.Visible = true;
+                                confirmButton.Visible = true;
+                                solutionStepsButton.Visible = true;
+
+                                currentState = FormState.Solved;
+                            });
+                        }
+                        return;
+                    }
+                }
+
+                solutionText = fullResponse;
+                answerLetter = answer;
+
+                // UI'ı güncelle
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+                        resultLabel.Text = "Cevap: " + answerLetter;
+                        resultLabel.Visible = true;
+                        confirmButton.Visible = true;
+                        solutionStepsButton.Visible = true;
+
+                        currentState = FormState.Solved;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Hata durumunda UI'ı güncelle
+                solutionText = $"Hata oluştu: {ex.Message}";
+                answerLetter = "Hata";
+
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+                        resultLabel.Text = "Çözüm sırasında hata oluştu";
+                        resultLabel.Visible = true;
+                        confirmButton.Visible = true;
+
+                        currentState = FormState.Solved;
+                    });
+                }
+            }
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -229,6 +650,252 @@ namespace QSolver
         }
     }
 
+    public class QuestionEditForm : Form
+    {
+        private readonly TextBox questionTextBox;
+        private string questionText;
+
+        public string EditedQuestionText => questionTextBox.Text;
+        public bool IsEdited { get; private set; } = false;
+
+        public QuestionEditForm(string initialText)
+        {
+            this.questionText = initialText;
+            this.Text = "Soruyu Düzenle";
+            this.Size = new Size(600, 400);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.TopMost = true; // Formu en üstte tut
+
+            // Soru metin kutusu
+            questionTextBox = new TextBox
+            {
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Dock = DockStyle.Fill,
+                Text = initialText,
+                Font = new Font("Segoe UI", 10)
+            };
+
+            // Butonlar için panel
+            var buttonPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50
+            };
+
+            // Kaydet butonu
+            var saveButton = new Button
+            {
+                Text = "Kaydet",
+                Width = 100,
+                Height = 30,
+                Location = new Point(this.Width - 230, 10),
+                Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+            };
+            saveButton.Click += SaveButton_Click;
+
+            // İptal butonu
+            var cancelButton = new Button
+            {
+                Text = "İptal",
+                Width = 100,
+                Height = 30,
+                Location = new Point(this.Width - 120, 10),
+                Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+            };
+            cancelButton.Click += CancelButton_Click;
+
+            // Kontrolleri forma ekle
+            buttonPanel.Controls.Add(saveButton);
+            buttonPanel.Controls.Add(cancelButton);
+            this.Controls.Add(questionTextBox);
+            this.Controls.Add(buttonPanel);
+
+            // Escape tuşu ile formu kapat
+            this.KeyPreview = true;
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    this.DialogResult = DialogResult.Cancel;
+                    this.Close();
+                }
+            };
+        }
+
+        private void SaveButton_Click(object? sender, EventArgs e)
+        {
+            if (questionTextBox.Text != questionText)
+            {
+                IsEdited = true;
+            }
+            this.DialogResult = DialogResult.OK;
+            this.Close();
+        }
+
+        private void CancelButton_Click(object? sender, EventArgs e)
+        {
+            this.DialogResult = DialogResult.Cancel;
+            this.Close();
+        }
+    }
+
+    public class SolutionStepsForm : Form
+    {
+        public SolutionStepsForm(string solutionText)
+        {
+            this.Text = "Çözüm Adımları";
+            this.Size = new Size(800, 600);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.TopMost = true; // Formu en üstte tut
+
+            // JSON kısmını kaldır
+            int jsonIndex = solutionText.LastIndexOf("json{");
+            if (jsonIndex > 0)
+            {
+                solutionText = solutionText.Substring(0, jsonIndex);
+            }
+
+            // Doğrudan JSON formatındaki cevabı kaldır
+            int braceIndex = solutionText.LastIndexOf("{");
+            if (braceIndex > 0 && solutionText.Substring(braceIndex).Contains("\"solved\"") && solutionText.Substring(braceIndex).Contains("\"answer\""))
+            {
+                solutionText = solutionText.Substring(0, braceIndex).TrimEnd();
+            }
+
+            // WebBrowser kontrolü oluştur
+            var webBrowser = new WebBrowser
+            {
+                Dock = DockStyle.Fill,
+                ScriptErrorsSuppressed = true
+            };
+
+            // Markdown'ı HTML'e dönüştür
+            string htmlContent = $@"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset='utf-8'>
+                <style>
+                    body {{ 
+                        font-family: Arial, sans-serif; 
+                        line-height: 1.6;
+                        margin: 20px;
+                        background-color: #f9f9f9;
+                    }}
+                    h1, h2, h3 {{ color: #333; }}
+                    pre {{ 
+                        background-color: #f0f0f0; 
+                        padding: 10px; 
+                        border-radius: 5px;
+                        overflow-x: auto;
+                    }}
+                    code {{ 
+                        font-family: Consolas, monospace; 
+                        background-color: #f0f0f0;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                    }}
+                    blockquote {{
+                        border-left: 4px solid #ddd;
+                        padding-left: 10px;
+                        color: #666;
+                    }}
+                    table {{
+                        border-collapse: collapse;
+                        width: 100%;
+                    }}
+                    th, td {{
+                        border: 1px solid #ddd;
+                        padding: 8px;
+                    }}
+                    th {{
+                        background-color: #f2f2f2;
+                    }}
+                    img {{ max-width: 100%; }}
+                    p {{ margin-bottom: 15px; }}
+                </style>
+            </head>
+            <body>
+                {ConvertMarkdownToHtml(solutionText)}
+            </body>
+            </html>";
+
+            webBrowser.DocumentText = htmlContent;
+
+            // Kapat butonu
+            var closeButton = new Button
+            {
+                Text = "Kapat",
+                Width = 100,
+                Height = 30,
+                Dock = DockStyle.Bottom,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+            };
+            closeButton.Click += (s, e) => this.Close();
+
+            // Kontrolleri forma ekle
+            this.Controls.Add(webBrowser);
+            this.Controls.Add(closeButton);
+
+            // Escape tuşu ile formu kapat
+            this.KeyPreview = true;
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    this.Close();
+                }
+            };
+        }
+
+        // Basit bir Markdown to HTML dönüştürücü
+        private string ConvertMarkdownToHtml(string markdown)
+        {
+            // Başlıklar
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^# (.+)$", "<h1>$1</h1>", System.Text.RegularExpressions.RegexOptions.Multiline);
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^## (.+)$", "<h2>$1</h2>", System.Text.RegularExpressions.RegexOptions.Multiline);
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^### (.+)$", "<h3>$1</h3>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Kalın
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+
+            // İtalik
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\*(.+?)\*", "<em>$1</em>");
+
+            // Kod blokları
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"```(.+?)```", "<pre><code>$1</code></pre>", System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            // Satır içi kod
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"`(.+?)`", "<code>$1</code>");
+
+            // Listeler
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^\* (.+)$", "<ul><li>$1</li></ul>", System.Text.RegularExpressions.RegexOptions.Multiline);
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^(\d+)\. (.+)$", "<ol><li>$2</li></ol>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Paragraflar ve satır sonları
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^\s*$\n", "</p><p>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Çift satır sonları paragraf olarak işle
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\n\n", "</p><p>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Tek satır sonları <br> olarak işle
+            markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\n", "<br>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Tüm metni paragraf içine al
+            markdown = "<p>" + markdown + "</p>";
+
+            // Fazladan oluşan paragrafları temizle
+            markdown = markdown.Replace("<p></p>", "");
+
+            return markdown;
+        }
+    }
+
     public class Program
     {
         private readonly NotifyIcon trayIcon;
@@ -238,9 +905,13 @@ namespace QSolver
         private bool isSelecting;
         private readonly GeminiService geminiService;
 
+        // Statik gemini servisi referansı
+        private static GeminiService? staticGeminiService;
+
         public Program()
         {
             geminiService = new GeminiService("AIzaSyAgRG_98cIwNlvtrtKVyZy3fCeZYmGW9Uo");
+            staticGeminiService = geminiService;
 
             trayIcon = new NotifyIcon()
             {
@@ -253,13 +924,16 @@ namespace QSolver
             // Context menu oluşturma
             trayIcon.ContextMenuStrip.Items.Add("Soru Seç", null, CaptureScreen_Click);
             trayIcon.ContextMenuStrip.Items.Add("Çıkış", null, Exit_Click);
+        }
 
-            // Temp klasörünü oluştur
-            string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
-            if (!Directory.Exists(tempPath))
+        // Statik gemini servisi erişimi için metot
+        public static GeminiService GetGeminiService()
+        {
+            if (staticGeminiService == null)
             {
-                Directory.CreateDirectory(tempPath);
+                staticGeminiService = new GeminiService("AIzaSyAgRG_98cIwNlvtrtKVyZy3fCeZYmGW9Uo");
             }
+            return staticGeminiService;
         }
 
         private void CaptureScreen_Click(object? sender, EventArgs e)
@@ -381,29 +1055,50 @@ namespace QSolver
                     g.CopyFromScreen(selectionRect.Location, Point.Empty, selectionRect.Size);
                 }
 
-                string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
-                string fileName = $"capture_{DateTime.Now:yyyyMMdd_HHmmss}";
-                string imagePath = Path.Combine(tempPath, fileName + ".png");
-                string textPath = Path.Combine(tempPath, fileName + ".txt");
+                // Görseli bellekte tutarak base64'e çevir
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    bitmap.Save(ms, ImageFormat.Png);
+                    byte[] imageBytes = ms.ToArray();
+                    string base64Image = Convert.ToBase64String(imageBytes);
 
-                bitmap.Save(imagePath, ImageFormat.Png);
+                    // Sonuç formunun konumunu belirle
+                    Control? controlForScreen = captureForm ?? Form.ActiveForm;
+                    if (controlForScreen == null && Application.OpenForms.Count > 0)
+                    {
+                        controlForScreen = Application.OpenForms[0];
+                    }
 
-                // Sonuç formunu göster ve API yanıtını bekle
-                Point resultLocation = new Point(
-                    selectionRect.Right - 200,
-                    selectionRect.Bottom + 10
-                );
+                    // Eğer hala null ise, varsayılan ekranı kullan
+                    Screen currentScreen = controlForScreen != null
+                        ? Screen.FromControl(controlForScreen)
+                        : Screen.PrimaryScreen ?? Screen.AllScreens[0];
 
-                // API çağrısını başlat
-                var analysisTask = geminiService.AnalyzeImage(imagePath);
+                    Rectangle screenBounds = currentScreen.WorkingArea;
 
-                // Sonuç formunu göster ve analiz task'ını ilet
-                ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
-                resultForm.Show();
+                    // Sağ kenarın taşmadığını kontrol et
+                    int x = screenBounds.Right - 250; // Form genişliği 250
+                    if (selectionRect.Right + 250 <= screenBounds.Right)
+                    {
+                        x = selectionRect.Right - 125; // Sağ kenarın ortasında
+                    }
 
-                // API yanıtını bekle ve txt dosyasına kaydet
-                string response = await analysisTask;
-                await File.WriteAllTextAsync(textPath, response);
+                    int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
+
+                    Point resultLocation = new Point(x, y);
+
+                    // API çağrısını başlat
+                    var analysisTask = geminiService.AnalyzeImage(base64Image);
+
+                    // Sonuç formunu göster ve analiz task'ını ilet
+                    ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
+                    resultForm.Show();
+
+                    // API yanıtını bekle ve bir değişkende sakla
+                    string response = await analysisTask;
+                    // Cevabı bir değişkende saklayabilirsiniz
+                    string analyzedText = response;
+                }
             }
         }
 
