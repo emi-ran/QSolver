@@ -208,6 +208,12 @@ Soru:
                     using JsonDocument document = JsonDocument.Parse(jsonPart);
                     var root = document.RootElement;
 
+                    if (root.TryGetProperty("solved", out var solvedElement) &&
+                        solvedElement.GetString() == "false")
+                    {
+                        return "Soru Çözülemedi";
+                    }
+
                     if (root.TryGetProperty("answer", out var answerElement))
                     {
                         return answerElement.GetString() ?? "?";

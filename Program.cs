@@ -196,6 +196,9 @@ namespace QSolver
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // DPI ayarlarını etkinleştir
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
             // Program nesnesini oluştur ve uygulamayı çalıştır
             Program program = new Program();
             Application.Run();

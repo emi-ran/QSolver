@@ -54,3 +54,7 @@ Katkılarınızı bekliyoruz! Dilediğiniz zaman Pull Request gönderebilirsiniz
 ## Lisans
 
 Bu proje MIT Lisansı ile lisanslanmıştır - detaylar için LICENSE dosyasına bakınız.
+
+## Özel Teşekkür
+
+Bu projenin fikrini oluşturan ve var olma sebebi olan Bayazıt S.'ye özel teşekkürlerimi sunarım. O olmasaydı böyle bir programı yapmak benim aklıma gelmeyecekti bile. Kendisinin fikri bulmasıyla bu projeyi yapmaya başladım.

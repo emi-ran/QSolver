@@ -54,3 +54,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Special Thanks
+
+I would like to express my special thanks to Bayazıt S. for creating the idea of this project. If he hadn't come up with the idea, I wouldn't have even thought of making such a program. I would like to thank him for his idea and for his support.

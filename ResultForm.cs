@@ -230,7 +230,7 @@ namespace QSolver
                 // Özel JSON yanıtını kontrol et
                 if (questionText.Contains("\"question_not_found\""))
                 {
-                    questionText = "Görselde soru bulunamadı. Lütfen tekrar deneyin.";
+                    questionText = "Soru bulunamadı.";
 
                     if (this.IsHandleCreated)
                     {
