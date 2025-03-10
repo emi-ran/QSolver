@@ -3,25 +3,118 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace QSolver
 {
+    public class GeminiRequest
+    {
+        public required Content[] contents { get; set; }
+    }
+
+    public class Content
+    {
+        public required Part[] parts { get; set; }
+    }
+
+    public class Part
+    {
+        public string? text { get; set; }
+        public InlineData? inline_data { get; set; }
+    }
+
+    public class InlineData
+    {
+        public required string mime_type { get; set; }
+        public required string data { get; set; }
+    }
+
+    public class GeminiService
+    {
+        private readonly string apiKey;
+        private readonly HttpClient httpClient;
+        private const string API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+        public GeminiService(string apiKey)
+        {
+            this.apiKey = apiKey;
+            this.httpClient = new HttpClient();
+        }
+
+        public async Task<string> AnalyzeImage(string imagePath)
+        {
+            try
+            {
+                // Resmi base64'e çevir
+                byte[] imageBytes = File.ReadAllBytes(imagePath);
+                string base64Image = Convert.ToBase64String(imageBytes);
+
+                // API isteği için JSON hazırla
+                var request = new GeminiRequest
+                {
+                    contents = new[]
+                    {
+                        new Content
+                        {
+                            parts = new[]
+                            {
+                                new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme." },
+                                new Part
+                                {
+                                    inline_data = new InlineData
+                                    {
+                                        mime_type = "image/png",
+                                        data = base64Image
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                string jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                // API'ye istek gönder
+                var response = await httpClient.PostAsync($"{API_URL}?key={apiKey}", content);
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+
+                // Yanıtı işle (basit bir şekilde)
+                using JsonDocument document = JsonDocument.Parse(jsonResponse);
+                var root = document.RootElement;
+                if (root.TryGetProperty("candidates", out var candidates) &&
+                    candidates.GetArrayLength() > 0 &&
+                    candidates[0].TryGetProperty("content", out var contentElement) &&
+                    contentElement.TryGetProperty("parts", out var parts) &&
+                    parts.GetArrayLength() > 0 &&
+                    parts[0].TryGetProperty("text", out var textElement))
+                {
+                    return textElement.GetString() ?? "Yanıt alınamadı.";
+                }
+
+                return "Yanıt işlenemedi.";
+            }
+            catch (Exception ex)
+            {
+                return $"Hata oluştu: {ex.Message}";
+            }
+        }
+    }
+
     public class ResultForm : Form
     {
-        private readonly int answer;
         private readonly Label thinkingLabel;
         private readonly Label resultLabel;
         private readonly Button confirmButton;
         private readonly System.Windows.Forms.Timer animationTimer;
         private int animationDots = 0;
-        private int elapsedTime = 0;
 
-        public ResultForm(Point location)
+        public ResultForm(Point location, Task<string> analysisTask)
         {
-            // Rastgele cevap üret
-            Random rnd = new Random();
-            answer = rnd.Next(1, 11);
-
             // Form özellikleri
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.Manual;
@@ -33,7 +126,7 @@ namespace QSolver
             // Düşünme etiketi
             thinkingLabel = new Label
             {
-                Text = "Düşünülüyor",
+                Text = "Soru Analiz Ediliyor",
                 AutoSize = true,
                 Location = new Point(10, 10),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -43,7 +136,7 @@ namespace QSolver
             // Sonuç etiketi (başlangıçta gizli)
             resultLabel = new Label
             {
-                Text = $"Soru çözüldü! Cevap: {answer}",
+                Text = "Soru Çözülüyor",
                 AutoSize = true,
                 Location = new Point(10, 10),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -72,21 +165,9 @@ namespace QSolver
 
             animationTimer.Tick += (s, e) =>
             {
-                elapsedTime += animationTimer.Interval;
-
-                // 3 saniye sonra sonucu göster
-                if (elapsedTime >= 3000)
-                {
-                    animationTimer.Stop();
-                    thinkingLabel.Visible = false;
-                    resultLabel.Visible = true;
-                    confirmButton.Visible = true;
-                    return;
-                }
-
                 // Nokta animasyonu
                 animationDots = (animationDots + 1) % 4;
-                thinkingLabel.Text = "Düşünülüyor" + new string('.', animationDots);
+                thinkingLabel.Text = "Soru Analiz Ediliyor" + new string('.', animationDots);
             };
 
             // Kontrolleri forma ekle
@@ -99,6 +180,23 @@ namespace QSolver
 
             // Timer'ı başlat
             animationTimer.Start();
+
+            // API yanıtını bekle
+            WaitForAnalysis(analysisTask);
+        }
+
+        private async void WaitForAnalysis(Task<string> analysisTask)
+        {
+            await analysisTask;
+
+            // Analiz tamamlandığında UI'ı güncelle
+            this.Invoke((MethodInvoker)delegate
+            {
+                animationTimer.Stop();
+                thinkingLabel.Visible = false;
+                resultLabel.Visible = true;
+                confirmButton.Visible = true;
+            });
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -138,9 +236,12 @@ namespace QSolver
         private Point startPoint;
         private Rectangle selectionRect;
         private bool isSelecting;
+        private readonly GeminiService geminiService;
 
         public Program()
         {
+            geminiService = new GeminiService("AIzaSyAgRG_98cIwNlvtrtKVyZy3fCeZYmGW9Uo");
+
             trayIcon = new NotifyIcon()
             {
                 Icon = SystemIcons.Application,
@@ -269,7 +370,7 @@ namespace QSolver
             captureForm.Show();
         }
 
-        private void CaptureRegion()
+        private async void CaptureRegion()
         {
             if (selectionRect.Width <= 0 || selectionRect.Height <= 0) return;
 
@@ -281,19 +382,28 @@ namespace QSolver
                 }
 
                 string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
-                string fileName = $"capture_{DateTime.Now:yyyyMMdd_HHmmss}.png";
-                string fullPath = Path.Combine(tempPath, fileName);
+                string fileName = $"capture_{DateTime.Now:yyyyMMdd_HHmmss}";
+                string imagePath = Path.Combine(tempPath, fileName + ".png");
+                string textPath = Path.Combine(tempPath, fileName + ".txt");
 
-                bitmap.Save(fullPath, ImageFormat.Png);
+                bitmap.Save(imagePath, ImageFormat.Png);
 
-                // Sonuç formunu göster
+                // Sonuç formunu göster ve API yanıtını bekle
                 Point resultLocation = new Point(
-                    selectionRect.Right - 200,  // Form genişliği 200
+                    selectionRect.Right - 200,
                     selectionRect.Bottom + 10
                 );
 
-                ResultForm resultForm = new ResultForm(resultLocation);
+                // API çağrısını başlat
+                var analysisTask = geminiService.AnalyzeImage(imagePath);
+
+                // Sonuç formunu göster ve analiz task'ını ilet
+                ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
                 resultForm.Show();
+
+                // API yanıtını bekle ve txt dosyasına kaydet
+                string response = await analysisTask;
+                await File.WriteAllTextAsync(textPath, response);
             }
         }
 
