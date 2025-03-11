@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Drawing.Drawing2D;
 
 namespace QSolver
 {
@@ -29,13 +30,28 @@ namespace QSolver
 
         private FormState currentState;
 
+        private readonly System.Windows.Forms.Timer fadeTimer;
+        private float currentOpacity = 0.0f;
+        private bool isFadingIn = true;
+
         public ResultForm(Point location, Task<string> analysisTask)
         {
-            this.Size = new Size(250, 120);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer |
+                    ControlStyles.AllPaintingInWmPaint |
+                    ControlStyles.UserPaint |
+                    ControlStyles.SupportsTransparentBackColor, true);
+
+            UpdateStyles();
+
+            this.Size = new Size(280, 150);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.Manual;
             this.ShowInTaskbar = false;
             this.TopMost = true;
+            this.Opacity = 0;
+
+            // Form yuvarlak köşeli olsun
+            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, this.Width, this.Height, 15, 15));
 
             // Formun ekran sınırları içinde kalmasını sağla
             Screen currentScreen = Screen.FromControl(this);
@@ -63,62 +79,98 @@ namespace QSolver
             {
                 Text = "Soru Analiz Ediliyor",
                 AutoSize = true,
-                Location = new Point(10, 10),
+                Location = new Point(20, 20),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
                 Visible = true
             };
 
-            // Sonuç etiketi (başlangıçta gizli)
+            // Sonuç etiketi
             resultLabel = new Label
             {
                 Text = "Soru Analiz Edildi",
                 AutoSize = true,
-                Location = new Point(10, 10),
+                Location = new Point(20, 20),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
                 Visible = false
             };
 
-            // Onay butonu (başlangıçta gizli)
+            // Onay butonu
             confirmButton = new Button
             {
-                Text = "Onayla",
-                Size = new Size(100, 30),
-                Location = new Point(10, 40),
+                Text = "Çöz",
+                Size = new Size(110, 35),
+                Location = new Point(20, 55),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.DeepSkyBlue,
+                BackColor = Color.FromArgb(64, 156, 255),
                 ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
                 Visible = false
             };
+            confirmButton.FlatAppearance.BorderSize = 0;
+            confirmButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, confirmButton.Width, confirmButton.Height, 10, 10));
 
-            // Düzenleme butonu (başlangıçta gizli)
+            // Düzenleme butonu
             editButton = new Button
             {
                 Text = "Düzenle",
-                Size = new Size(100, 30),
-                Location = new Point(120, 40),
+                Size = new Size(110, 35),
+                Location = new Point(140, 55),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Orange,
+                BackColor = Color.FromArgb(255, 159, 67),
                 ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
                 Visible = false
             };
+            editButton.FlatAppearance.BorderSize = 0;
+            editButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, editButton.Width, editButton.Height, 10, 10));
 
-            // Çözüm adımları butonu (başlangıçta gizli)
+            // Çözüm adımları butonu
             solutionStepsButton = new Button
             {
                 Text = "Çözüm Adımları",
-                Size = new Size(210, 30),
-                Location = new Point(10, 80),
+                Size = new Size(240, 35),
+                Location = new Point(20, 100),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Green,
+                BackColor = Color.FromArgb(46, 213, 115),
                 ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
                 Visible = false
+            };
+            solutionStepsButton.FlatAppearance.BorderSize = 0;
+            solutionStepsButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, solutionStepsButton.Width, solutionStepsButton.Height, 10, 10));
+
+            // Fade-in/out animasyonu için timer
+            fadeTimer = new System.Windows.Forms.Timer { Interval = 16 }; // ~60 FPS
+            fadeTimer.Tick += (s, e) =>
+            {
+                if (isFadingIn)
+                {
+                    currentOpacity += 0.1f;
+                    if (currentOpacity >= 1.0f)
+                    {
+                        currentOpacity = 1.0f;
+                        fadeTimer.Stop();
+                    }
+                }
+                else
+                {
+                    currentOpacity -= 0.1f;
+                    if (currentOpacity <= 0.0f)
+                    {
+                        currentOpacity = 0.0f;
+                        fadeTimer.Stop();
+                        this.Close();
+                    }
+                }
+                this.Opacity = currentOpacity;
             };
 
             // Animasyon zamanlayıcısı
-            animationTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 500
-            };
+            animationTimer = new System.Windows.Forms.Timer { Interval = 500 };
             animationTimer.Tick += (s, e) =>
             {
                 animationDots = (animationDots + 1) % 4;
@@ -127,7 +179,26 @@ namespace QSolver
                     ? $"Soru Analiz Ediliyor{dots}"
                     : $"Soru Çözülüyor{dots}";
             };
-            animationTimer.Start();
+
+            // Buton hover efektleri
+            foreach (Button btn in new[] { confirmButton, editButton, solutionStepsButton })
+            {
+                btn.MouseEnter += (s, e) =>
+                {
+                    if (s is Button button)
+                    {
+                        button.BackColor = DarkenColor(button.BackColor, 20);
+                    }
+                };
+
+                btn.MouseLeave += (s, e) =>
+                {
+                    if (s is Button button)
+                    {
+                        button.BackColor = LightenColor(button.BackColor, 20);
+                    }
+                };
+            }
 
             // Olay işleyicileri
             confirmButton.Click += ConfirmButton_Click;
@@ -147,23 +218,68 @@ namespace QSolver
             {
                 if (e.KeyCode == Keys.Escape)
                 {
-                    this.Close();
+                    if (currentState == FormState.Analyzing || currentState == FormState.Analyzed)
+                    {
+                        FadeOutAndClose();
+                    }
                 }
+            };
+
+            // Form kapatıldığında animasyonları durdur
+            this.FormClosing += (s, e) =>
+            {
+                animationTimer?.Stop();
+                fadeTimer?.Stop();
+            };
+
+            // Form yüklendiğinde fade-in efekti başlat
+            this.Load += (s, e) =>
+            {
+                isFadingIn = true;
+                fadeTimer.Start();
+                animationTimer.Start();
             };
 
             // Analiz görevini başlat
             WaitForAnalysis(analysisTask);
         }
 
+        private void FadeOutAndClose()
+        {
+            isFadingIn = false;
+            fadeTimer.Start();
+        }
+
+        private Color DarkenColor(Color color, int amount)
+        {
+            return Color.FromArgb(color.A,
+                Math.Max(color.R - amount, 0),
+                Math.Max(color.G - amount, 0),
+                Math.Max(color.B - amount, 0));
+        }
+
+        private Color LightenColor(Color color, int amount)
+        {
+            return Color.FromArgb(color.A,
+                Math.Min(color.R + amount, 255),
+                Math.Min(color.G + amount, 255),
+                Math.Min(color.B + amount, 255));
+        }
+
+        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
+        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect,
+            int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
+
         private void ConfirmButton_Click(object? sender, EventArgs e)
         {
             if (currentState == FormState.Analyzed)
             {
+                confirmButton.Text = "Tamam";
                 StartSolvingQuestion();
             }
             else if (currentState == FormState.Solved)
             {
-                this.Close();
+                FadeOutAndClose();
             }
         }
 
@@ -171,8 +287,8 @@ namespace QSolver
         {
             try
             {
-                // Mevcut formu gizle
-                this.Visible = false;
+                // Formu gizlemek yerine opacity'sini düşür
+                this.Opacity = 0.1;
 
                 // Düzenleme formunu göster
                 using (var editForm = new QuestionEditForm(questionText))
@@ -180,17 +296,17 @@ namespace QSolver
                     if (editForm.ShowDialog() == DialogResult.OK && editForm.IsEdited)
                     {
                         questionText = editForm.EditedQuestionText;
-                        resultLabel.Text = "Soru düzenlendi. Çözüm için Onayla'ya tıklayın.";
+                        resultLabel.Text = "Soru düzenlendi.";
                     }
                 }
 
-                // Mevcut formu tekrar göster
-                this.Visible = true;
+                // Formu tekrar görünür yap
+                this.Opacity = 1.0;
                 this.BringToFront();
             }
             catch (Exception ex)
             {
-                this.Visible = true;
+                this.Opacity = 1.0;
                 MessageBox.Show($"Düzenleme sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -199,8 +315,8 @@ namespace QSolver
         {
             try
             {
-                // Mevcut formu gizle
-                this.Visible = false;
+                // Formu gizlemek yerine opacity'sini düşür
+                this.Opacity = 0.1;
 
                 // Çözüm adımları formunu göster
                 var stepsForm = new SolutionStepsForm(solutionText);
@@ -208,7 +324,7 @@ namespace QSolver
                 // Form kapandığında mevcut formu tekrar göster
                 stepsForm.FormClosed += (s, args) =>
                 {
-                    this.Visible = true;
+                    this.Opacity = 1.0;
                     this.BringToFront();
                 };
 
@@ -216,7 +332,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                this.Visible = true;
+                this.Opacity = 1.0;
                 MessageBox.Show($"Çözüm adımları gösterilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -374,8 +490,9 @@ namespace QSolver
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
 
-                        // Her zaman "Cevaplar:" şeklinde göster
-                        resultLabel.Text = "Cevaplar: " + answerLetter;
+                        // Cevap tek harf mi kontrol et
+                        string prefix = answerLetter.Length == 1 ? "Cevap: " : "Cevaplar: ";
+                        resultLabel.Text = prefix + answerLetter;
 
                         resultLabel.Visible = true;
                         confirmButton.Visible = true;
@@ -411,11 +528,30 @@ namespace QSolver
         {
             base.OnPaint(e);
 
-            // Form kenarlarını çiz
-            using (Pen pen = new Pen(Color.DarkGray, 1))
+            // Gradient arka plan
+            using (LinearGradientBrush brush = new LinearGradientBrush(
+                this.ClientRectangle,
+                Color.FromArgb(48, 51, 107),
+                Color.FromArgb(25, 25, 112),
+                45F))
+            {
+                e.Graphics.FillRectangle(brush, this.ClientRectangle);
+            }
+
+            // Form kenarları için gölge efekti
+            using (Pen pen = new Pen(Color.FromArgb(40, Color.White), 1))
             {
                 e.Graphics.DrawRectangle(pen, 0, 0, this.Width - 1, this.Height - 1);
             }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing && currentState != FormState.Solved)
+            {
+                MessageBox.Show("İşlem iptal edildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            base.OnFormClosing(e);
         }
 
         protected override void Dispose(bool disposing)
@@ -426,6 +562,16 @@ namespace QSolver
                 animationTimer?.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= 0x02000000;  // WS_EX_COMPOSITED
+                return cp;
+            }
         }
     }
 }

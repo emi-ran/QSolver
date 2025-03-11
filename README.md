@@ -4,6 +4,8 @@
 
 QSolver is a Windows application that helps you capture and process questions from your screen. It sits in your system tray, ready to assist you whenever needed.
 
+Version: 1.2.0
+
 ## Features
 
 - **Screen Capture**: Easily capture any region of your screen with a simple click and drag interface

@@ -4,25 +4,33 @@ Türkçe | [English](README.md)
 
 QSolver, ekranınızdaki soruları yakalamak ve işlemek için tasarlanmış bir Windows uygulamasıdır. Sistem tepsisinde durarak ihtiyaç duyduğunuzda hemen kullanıma hazırdır.
 
+Sürüm: 1.2.0
+
 ## Özellikler
 
 - **Ekran Yakalama**: Basit bir tıkla ve sürükle arayüzü ile ekranınızın istediğiniz bölgesini kolayca yakalayın
 - **Akıllı İşleme**: Yakalanan soruların hızlı analizi ve anında sonuç
 - **Sistem Tepsisi Entegrasyonu**: Her zaman erişilebilir ama asla yolunuza çıkmaz
-- **Modern Arayüz**: Temiz ve sezgisel arayüz, akıcı animasyonlar
+- **Modern Arayüz**: Temiz ve sezgisel arayüz, akıcı animasyonlar ve koyu tema
+- **Soru Düzenleme**: Metin formatını koruyan dahili soru düzenleyici
+- **Çözüm Adımları**: Her soru için detaylı çözüm adımları
 - **Geçici Depolama**: Yakalamaları otomatik olarak geçici bir klasörde saklar
+- **Özel Tema**: Yuvarlak köşeli ve yumuşak geçişli modern koyu tema
+- **API Anahtarı Yönetimi**: Farklı servisler için API anahtarlarınızı kolayca yönetin
 
 ## Gereksinimler
 
 - Windows İşletim Sistemi
 - .NET 8.0 veya üzeri
 - Visual Studio 2022 (geliştirme için)
+- Yapay zeka servisleri için internet bağlantısı
 
 ## Kurulum
 
 1. Releases sayfasından en son sürümü indirin
 2. Dosyaları istediğiniz konuma çıkartın
 3. `QSolver.exe`'yi çalıştırın
+4. Sistem tepsisi menüsünden API anahtarlarınızı yapılandırın
 
 ## Kullanım
 
@@ -30,7 +38,9 @@ QSolver, ekranınızdaki soruları yakalamak ve işlemek için tasarlanmış bir
 2. "Soru Seç" seçeneğini seçin
 3. Sorunun bulunduğu bölgeyi seçmek için tıklayıp sürükleyin
 4. İşleme animasyonunun tamamlanmasını bekleyin
-5. Sonucu görüntüleyin ve işiniz bittiğinde "Onayla" butonuna tıklayın
+5. Sonucu ve çözüm adımlarını görüntüleyin
+6. Gerekirse dahili düzenleyici ile soruyu düzenleyin
+7. İşiniz bittiğinde "Onayla" butonuna tıklayın
 
 ## Geliştirme
 

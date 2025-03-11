@@ -25,9 +25,13 @@ namespace QSolver
 
             // Doğrudan JSON formatındaki cevabı kaldır
             int braceIndex = solutionText.LastIndexOf("{");
-            if (braceIndex > 0 && solutionText.Substring(braceIndex).Contains("\"solved\"") && solutionText.Substring(braceIndex).Contains("\"answer\""))
+            if (braceIndex > 0)
             {
-                solutionText = solutionText.Substring(0, braceIndex).TrimEnd();
+                string potentialJson = solutionText.Substring(braceIndex).Trim();
+                if (potentialJson.Contains("\"solved\"") || potentialJson.Contains("\"answers\""))
+                {
+                    solutionText = solutionText.Substring(0, braceIndex).TrimEnd();
+                }
             }
 
             // Sadece "json" kelimesini kaldır

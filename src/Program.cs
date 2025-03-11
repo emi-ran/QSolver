@@ -74,14 +74,31 @@ namespace QSolver
                 return;
             }
 
+            // Seçim değişkenlerini sıfırla
+            isSelecting = false;
+            selectionRect = new Rectangle();
+            startPoint = Point.Empty;
+
             // Ekran yakalama formunu oluştur
-            captureForm = new DoubleBufferedForm();
-            captureForm.FormBorderStyle = FormBorderStyle.None;
-            captureForm.WindowState = FormWindowState.Maximized;
-            captureForm.BackColor = Color.Black;
-            captureForm.Opacity = 0.5;
-            captureForm.Cursor = Cursors.Cross;
-            captureForm.TopMost = true;
+            captureForm = new DoubleBufferedForm
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                WindowState = FormWindowState.Maximized,
+                BackColor = Color.Black,
+                Opacity = 0,
+                Cursor = Cursors.Cross,
+                TopMost = true,
+                ShowInTaskbar = false
+            };
+
+            // Form kapatıldığında seçim değişkenlerini sıfırla
+            captureForm.FormClosed += (s, e) =>
+            {
+                isSelecting = false;
+                selectionRect = new Rectangle();
+                startPoint = Point.Empty;
+                captureForm = null;
+            };
 
             // Mouse olaylarını ekle
             captureForm.MouseDown += (s, e) =>
@@ -132,7 +149,7 @@ namespace QSolver
             {
                 if (isSelecting && selectionRect.Width > 0 && selectionRect.Height > 0)
                 {
-                    using (Pen pen = new Pen(Color.Red, 2))
+                    using (Pen pen = new Pen(Color.White, 1))
                     {
                         ev.Graphics.DrawRectangle(pen, selectionRect);
                     }
@@ -162,7 +179,34 @@ namespace QSolver
                 }
             };
 
+            // Formu göster ve yavaşça opaklığı artır
+            System.Windows.Forms.Timer fadeTimer = new System.Windows.Forms.Timer();
+            fadeTimer.Interval = 1;
+            double opacity = 0;
+            fadeTimer.Tick += (s, e) =>
+            {
+                opacity += 0.04;
+                if (opacity >= 0.5)
+                {
+                    opacity = 0.5;
+                    fadeTimer.Stop();
+                    fadeTimer.Dispose();
+                }
+                if (captureForm != null && !captureForm.IsDisposed)
+                {
+                    captureForm.Opacity = opacity;
+                }
+            };
+
             captureForm.Show();
+            fadeTimer.Start();
+
+            // Form kapatıldığında timer'ı temizle
+            captureForm.FormClosed += (s, e) =>
+            {
+                fadeTimer.Stop();
+                fadeTimer.Dispose();
+            };
         }
 
         private void CaptureRegion()
