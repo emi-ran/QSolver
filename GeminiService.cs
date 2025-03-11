@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace QSolver
 {
@@ -35,12 +36,15 @@ namespace QSolver
         private readonly string apiKey;
         private readonly HttpClient httpClient;
         private const string API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-        private const string OCR_MODEL = "gemini-2.0-flash";
-        private const string SOLVER_MODEL = "gemini-2.0-flash";
+        private const string OCR_MODEL = "gemini-1.5-pro";
+        private const string SOLVER_MODEL = "gemini-1.5-pro";
 
-        public GeminiService(string apiKey)
+        public GeminiService(string? apiKey)
         {
-            this.apiKey = apiKey;
+            this.apiKey = string.IsNullOrEmpty(apiKey) ?
+                ApiKeyManager.GetRandomApiKey() :
+                apiKey;
+
             httpClient = new HttpClient();
         }
 
@@ -145,7 +149,26 @@ namespace QSolver
                                 {
                                     text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz. 
 Çözümün sonunda hangi şıkkın doğru olduğunu belirt. 
-Cevabını şu formatta bitir: { ""solved"":""true"", ""answer"":""X"" } (X yerine doğru şıkkı yaz, eğer çözemediysen solved kısmını false yap).
+
+ÖNEMLİ: Eğer birden fazla soru numarası varsa (örneğin: ""43. Soru"", ""44. Soru"" gibi), bunları BİRDEN FAZLA SORU olarak değerlendir ve SADECE TEK BİR JSON formatında cevap ver.
+
+ÇOK ÖNEMLİ: Soruları çözdükten sonra, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE doğru sırala. Örneğin, sorular 44, 49, 45, 50 sırasıyla verilmişse, cevapları 44, 45, 49, 50 sırasıyla (yani küçükten büyüğe) ver. CEVAPLARI MUTLAKA SORU NUMARALARINA GÖRE SIRALA!
+
+Cevabını şu formatta bitir:
+- Tek bir soru için: { ""solved"":""true"", ""answers"":""X"" } formatını kullan (X yerine doğru şıkkı yaz)
+- Birden fazla soru için: { ""solved"":""true"", ""answers"":""X,Y,Z,..."" } formatını kullan (Her soru için doğru şıkkı virgülle ayırarak yaz, ASLA her soru için ayrı JSON formatı verme!)
+- Eğer çözemediysen: { ""solved"":""false"" }
+
+TEKRAR: Eğer metin içinde numaralı sorular varsa (örn: 44, 49, 45, 50), soruları çözdükten sonra CEVAPLARI SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE DOĞRU SIRALA ve tek bir JSON'da ver.
+Örnek: Sorular 44, 49, 45, 50 sırasıyla verilmiş olsun ve cevapları A, B, C, D olsun. Doğru sıralama şöyle olacaktır:
+44. soru: A
+45. soru: C
+49. soru: B
+50. soru: D
+
+Bu durumda JSON cevabın { ""solved"":""true"", ""answers"":""A,C,B,D"" } şeklinde olmalıdır. Yani cevaplar soru numaralarına göre sıralanmalıdır.
+
+Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
 
 Soru:
 " + questionText
@@ -163,7 +186,8 @@ Soru:
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return ("API hatası: " + response.StatusCode, "Hata");
+                    string errorContent = await response.Content.ReadAsStringAsync();
+                    return ($"API hatası: {response.StatusCode}\nDetay: {errorContent}", "Hata");
                 }
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -214,9 +238,36 @@ Soru:
                         return "Soru Çözülemedi";
                     }
 
+                    // "answers" anahtarını kontrol et
+                    if (root.TryGetProperty("answers", out var answersElement))
+                    {
+                        string? answer = answersElement.GetString();
+                        return answer != null ? answer.ToUpper() : "?";
+                    }
+
+                    // Eski "answer" anahtarı kontrolü (geriye dönük uyumluluk için)
                     if (root.TryGetProperty("answer", out var answerElement))
                     {
-                        return answerElement.GetString() ?? "?";
+                        string? answer = answerElement.GetString();
+                        return answer != null ? answer.ToUpper() : "?";
+                    }
+                }
+
+                // Cevap bulunamadı, metni analiz ederek bulmaya çalış
+                if (response.Contains("Doğru cevaplar sırasıyla:") || response.Contains("Doğru cevap sırasıyla:"))
+                {
+                    // Metinden cevapları çıkarmaya çalış
+                    var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        if (line.Contains("Doğru cevaplar sırasıyla:") || line.Contains("Doğru cevap sırasıyla:"))
+                        {
+                            var answersText = line.Split(':')[1].Trim();
+                            // Cevapları ayıkla, büyük harfe çevir ve virgülle birleştir
+                            var answers = answersText.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                                                    .Select(a => a.ToUpper());
+                            return string.Join(",", answers);
+                        }
                     }
                 }
 

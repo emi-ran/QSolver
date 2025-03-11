@@ -351,7 +351,7 @@ namespace QSolver
                             {
                                 animationTimer.Stop();
                                 thinkingLabel.Visible = false;
-                                resultLabel.Text = "Cevap: " + answerLetter;
+                                resultLabel.Text = "Cevaplar: " + answerLetter;
                                 resultLabel.Visible = true;
                                 confirmButton.Visible = true;
                                 solutionStepsButton.Visible = true;
@@ -373,7 +373,10 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = "Cevap: " + answerLetter;
+
+                        // Her zaman "Cevaplar:" şeklinde göster
+                        resultLabel.Text = "Cevaplar: " + answerLetter;
+
                         resultLabel.Visible = true;
                         confirmButton.Visible = true;
                         solutionStepsButton.Visible = true;

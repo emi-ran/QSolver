@@ -21,11 +21,24 @@ namespace QSolver
 
         public Program()
         {
-            geminiService = new GeminiService("AIzaSyAgRG_98cIwNlvtrtKVyZy3fCeZYmGW9Uo");
+            // API anahtarı yöneticisinden rastgele bir anahtar al
+            string apiKey = ApiKeyManager.GetRandomApiKey();
+
+            // Eğer hiç API anahtarı yoksa, kullanıcıya bildir
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                MessageBox.Show(
+                    "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
+                    "Bilgi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            geminiService = new GeminiService(apiKey);
             staticGeminiService = geminiService;
 
             // Tray icon servisini oluştur
-            trayIconService = new TrayIconService(CaptureScreen, Exit);
+            trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm);
         }
 
         // Statik gemini servisi erişimi için metot
@@ -33,13 +46,34 @@ namespace QSolver
         {
             if (staticGeminiService == null)
             {
-                staticGeminiService = new GeminiService("AIzaSyAgRG_98cIwNlvtrtKVyZy3fCeZYmGW9Uo");
+                string? apiKey = ApiKeyManager.GetRandomApiKey();
+                staticGeminiService = new GeminiService(apiKey);
             }
             return staticGeminiService;
         }
 
+        private void ShowApiKeyForm()
+        {
+            var apiKeyForm = new ApiKeyForm();
+            apiKeyForm.ShowDialog();
+        }
+
         private void CaptureScreen()
         {
+            // API anahtarı kontrolü
+            if (string.IsNullOrEmpty(ApiKeyManager.GetRandomApiKey()))
+            {
+                MessageBox.Show(
+                    "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
+                    "Uyarı",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                // API anahtarı formunu göster
+                ShowApiKeyForm();
+                return;
+            }
+
             // Ekran yakalama formunu oluştur
             captureForm = new DoubleBufferedForm();
             captureForm.FormBorderStyle = FormBorderStyle.None;
@@ -149,37 +183,61 @@ namespace QSolver
                     byte[] imageBytes = ms.ToArray();
                     string base64Image = Convert.ToBase64String(imageBytes);
 
-                    // Sonuç formunun konumunu belirle
-                    Control? controlForScreen = captureForm ?? Form.ActiveForm;
-                    if (controlForScreen == null && Application.OpenForms.Count > 0)
+                    // Her istek için yeni bir API anahtarı al
+                    string apiKey = ApiKeyManager.GetRandomApiKey();
+                    if (!string.IsNullOrEmpty(apiKey))
                     {
-                        controlForScreen = Application.OpenForms[0];
+                        // Yeni bir GeminiService örneği oluştur
+                        var requestGeminiService = new GeminiService(apiKey);
+
+                        try
+                        {
+                            // Sonuç formunun konumunu belirle
+                            Control? controlForScreen = captureForm ?? Form.ActiveForm;
+                            if (controlForScreen == null && Application.OpenForms.Count > 0)
+                            {
+                                controlForScreen = Application.OpenForms[0];
+                            }
+
+                            // Eğer hala null ise, varsayılan ekranı kullan
+                            Screen currentScreen = controlForScreen != null
+                                ? Screen.FromControl(controlForScreen)
+                                : Screen.PrimaryScreen ?? Screen.AllScreens[0];
+
+                            Rectangle screenBounds = currentScreen.WorkingArea;
+
+                            // Sağ kenarın taşmadığını kontrol et
+                            int x = screenBounds.Right - 250; // Form genişliği 250
+                            if (selectionRect.Right + 250 <= screenBounds.Right)
+                            {
+                                x = selectionRect.Right - 125; // Sağ kenarın ortasında
+                            }
+
+                            int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
+
+                            Point resultLocation = new Point(x, y);
+
+                            // API çağrısını başlat
+                            var analysisTask = requestGeminiService.AnalyzeImage(base64Image);
+
+                            // Sonuç formunu göster ve analiz task'ını ilet
+                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
+                            resultForm.Show();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"API isteği sırasında hata oluştu: {ex.Message}",
+                                "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
-
-                    // Eğer hala null ise, varsayılan ekranı kullan
-                    Screen currentScreen = controlForScreen != null
-                        ? Screen.FromControl(controlForScreen)
-                        : Screen.PrimaryScreen ?? Screen.AllScreens[0];
-
-                    Rectangle screenBounds = currentScreen.WorkingArea;
-
-                    // Sağ kenarın taşmadığını kontrol et
-                    int x = screenBounds.Right - 250; // Form genişliği 250
-                    if (selectionRect.Right + 250 <= screenBounds.Right)
+                    else
                     {
-                        x = selectionRect.Right - 125; // Sağ kenarın ortasında
+                        MessageBox.Show("API anahtarı bulunamadı. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
+                            "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                        // API anahtarı formunu göster
+                        ShowApiKeyForm();
                     }
-
-                    int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
-
-                    Point resultLocation = new Point(x, y);
-
-                    // API çağrısını başlat
-                    var analysisTask = geminiService.AnalyzeImage(base64Image);
-
-                    // Sonuç formunu göster ve analiz task'ını ilet
-                    ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
-                    resultForm.Show();
                 }
             }
         }
