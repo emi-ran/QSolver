@@ -33,7 +33,7 @@ namespace QSolver
 
     public class GeminiService
     {
-        private readonly string apiKey;
+        private string apiKey;
         private readonly HttpClient httpClient;
         private const string API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
         private const string OCR_MODEL = "gemini-1.5-pro";
@@ -48,10 +48,22 @@ namespace QSolver
             httpClient = new HttpClient();
         }
 
+        private void UpdateApiKey()
+        {
+            string newKey = ApiKeyManager.GetRandomApiKey();
+            if (!string.IsNullOrEmpty(newKey))
+            {
+                apiKey = newKey;
+            }
+        }
+
         public async Task<string> AnalyzeImage(string base64Image)
         {
             try
             {
+                // Her istekten önce API key'i güncelle
+                UpdateApiKey();
+
                 // API isteği için JSON hazırla
                 var request = new GeminiRequest
                 {
@@ -136,6 +148,9 @@ namespace QSolver
         {
             try
             {
+                // Her istekten önce API key'i güncelle
+                UpdateApiKey();
+
                 // API isteği için JSON hazırla
                 var request = new GeminiRequest
                 {
