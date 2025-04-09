@@ -1,0 +1,129 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# QSolver Projesi Geliştirme Kuralları
+
+## Proje Hakkında
+
+QSolver, ekrandan seçilen soruları Google'ın Gemini AI modeli kullanarak çözen bir Windows masaüstü uygulamasıdır. Uygulama, sistem tepsisinde çalışır ve kullanıcıların ekrandan soru seçmesine, API anahtarlarını yönetmesine ve sonuçları görüntülemesine olanak tanır.
+
+## Proje Yapısı
+
+```
+QSolver/
+├── src/
+│   ├── Forms/           # Windows Forms arayüz bileşenleri
+│   ├── Services/        # Servis sınıfları
+│   └── Program.cs       # Ana uygulama giriş noktası
+├── Resources/           # Uygulama kaynakları (ikonlar, vb.)
+└── .cursorrules         # Bu dosya
+```
+
+## Kod Organizasyonu
+
+### Forms/
+- `ApiKeyForm.cs`: API anahtarlarının yönetildiği form
+- `ResultForm.cs`: Soru çözüm sonuçlarının gösterildiği form
+- `DoubleBufferedForm.cs`: Ekran yakalama için özel form
+
+### Services/
+- `GeminiService.cs`: Google Gemini AI API ile iletişim kuran servis
+- `ApiKeyManager.cs`: API anahtarlarının yönetimi
+- `TrayIconService.cs`: Sistem tepsisi entegrasyonu
+
+## Geliştirme Kuralları
+
+### 1. Genel Kurallar
+
+*   **Dil:** Tüm kod içi yorumlar ve kullanıcı arayüzü metinleri Türkçe olmalıdır.
+*   **Commit Mesajları:** İngilizce yazılmalı ve [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) formatına uygun olmalıdır.
+*   **Terminal Komutları:** Windows PowerShell uyumlu olmalıdır. Çoklu komutlar için `;` kullanılmalıdır.
+
+### 2. Kod Standartları
+
+*   **Sınıf Yapısı:**
+    - Her sınıf tek bir sorumluluğa sahip olmalıdır (Single Responsibility Principle)
+    - Servis sınıfları `Services/` dizininde olmalıdır
+    - Form sınıfları `Forms/` dizininde olmalıdır
+
+*   **API Anahtarı Yönetimi:**
+    - API anahtarları güvenli bir şekilde saklanmalıdır
+    - Anahtarlar kullanıcının AppData klasöründe JSON formatında tutulmalıdır
+    - Her istek için rastgele bir API anahtarı seçilmelidir
+
+*   **Hata Yönetimi:**
+    - Tüm API çağrıları try-catch blokları içinde yapılmalıdır
+    - Hatalar kullanıcıya anlaşılır mesajlarla bildirilmelidir
+    - Kritik hatalar loglama sistemine kaydedilmelidir
+
+### 3. Kullanıcı Arayüzü
+
+*   **Form Tasarımı:**
+    - Modern ve minimalist bir tasarım kullanılmalıdır
+    - Tüm formlar yuvarlak köşeli olmalıdır
+    - Koyu tema renkleri kullanılmalıdır (RGB: 45, 45, 48)
+
+*   **Animasyonlar:**
+    - Form geçişlerinde fade efektleri kullanılmalıdır
+    - Yükleme durumları için animasyonlu göstergeler kullanılmalıdır
+    - Animasyonlar performansı etkilemeyecek şekilde optimize edilmelidir
+
+### 4. Performans
+
+*   **Ekran Yakalama:**
+    - Double buffering kullanılmalıdır
+    - Gereksiz yeniden çizimlerden kaçınılmalıdır
+    - Büyük görüntüler için bellek yönetimi optimize edilmelidir
+
+*   **API İstekleri:**
+    - İstekler asenkron olarak yapılmalıdır
+    - Timeout süreleri makul değerlerde ayarlanmalıdır
+    - Başarısız istekler için yeniden deneme mekanizması kullanılmalıdır
+
+### 5. Güvenlik
+
+*   **API Anahtarları:**
+    - Anahtarlar asla düz metin olarak saklanmamalıdır
+    - Anahtarlar kullanıcının AppData klasöründe şifrelenmiş olarak tutulmalıdır
+    - Anahtarlar UI'da maskelenmiş olarak gösterilmelidir
+
+*   **Veri İşleme:**
+    - Kullanıcı verileri yerel olarak işlenmelidir
+    - Hassas veriler bellekten temizlenmelidir
+    - API yanıtları güvenli bir şekilde işlenmelidir
+
+### 6. Test ve Hata Ayıklama
+
+*   **Kod Kalitesi:**
+    - Kod düzenli olarak gözden geçirilmelidir
+    - Tekrar eden kodlar fonksiyonlara dönüştürülmelidir
+    - Değişken ve fonksiyon isimleri anlamlı olmalıdır
+
+*   **Hata Ayıklama:**
+    - Debug modunda detaylı loglar tutulmalıdır
+    - Kullanıcı hataları anlaşılır mesajlarla bildirilmelidir
+    - Kritik hatalar raporlama sistemine gönderilmelidir
+
+## Versiyon Yönetimi
+
+*   **Semantic Versioning:**
+    - MAJOR.MINOR.PATCH formatı kullanılmalıdır
+    - Her sürüm değişikliği CHANGELOG.md'ye eklenmelidir
+    - Sürüm numaraları Program.cs'de güncellenmelidir
+
+*   **Git Kullanımı:**
+    - Feature branch'ler feature/ öneki ile oluşturulmalıdır
+    - Hotfix'ler hotfix/ öneki ile oluşturulmalıdır
+    - Merge işlemleri pull request üzerinden yapılmalıdır
+
+## Bağımlılıklar
+
+*   **.NET Sürümü:** .NET 6.0 veya üzeri
+*   **UI Framework:** Windows Forms
+*   **API:** Google Gemini AI API
+*   **Gerekli NuGet Paketleri:**
+    - System.Drawing.Common
+    - System.Text.Json
+    - System.Windows.Forms

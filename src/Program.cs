@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Media;
 
 namespace QSolver
 {
@@ -209,80 +211,114 @@ namespace QSolver
             };
         }
 
-        private void CaptureRegion()
+        private async void CaptureRegion()
         {
-            if (selectionRect.Width <= 0 || selectionRect.Height <= 0) return;
-
-            using (Bitmap bitmap = new Bitmap(selectionRect.Width, selectionRect.Height))
+            if (selectionRect.Width <= 0 || selectionRect.Height <= 0)
             {
-                using (Graphics g = Graphics.FromImage(bitmap))
-                {
-                    g.CopyFromScreen(selectionRect.Location, Point.Empty, selectionRect.Size);
-                }
+                // Seçim yoksa formu kapat (opsiyonel, mevcut davranışta gizleniyor zaten)
+                // captureForm?.Close();
+                return;
+            }
 
-                // Görseli bellekte tutarak base64'e çevir
-                using (MemoryStream ms = new MemoryStream())
+            string base64Image;
+            try
+            {
+                using (Bitmap bitmap = new Bitmap(selectionRect.Width, selectionRect.Height))
                 {
-                    bitmap.Save(ms, ImageFormat.Png);
-                    byte[] imageBytes = ms.ToArray();
-                    string base64Image = Convert.ToBase64String(imageBytes);
-
-                    // Her istek için yeni bir API anahtarı al
-                    string apiKey = ApiKeyManager.GetRandomApiKey();
-                    if (!string.IsNullOrEmpty(apiKey))
+                    using (Graphics g = Graphics.FromImage(bitmap))
                     {
-                        // Yeni bir GeminiService örneği oluştur
-                        var requestGeminiService = new GeminiService(apiKey);
-
+                        // Ekran görüntüsünü alırken oluşabilecek hataları yakala
                         try
                         {
-                            // Sonuç formunun konumunu belirle
-                            Control? controlForScreen = captureForm ?? Form.ActiveForm;
-                            if (controlForScreen == null && Application.OpenForms.Count > 0)
-                            {
-                                controlForScreen = Application.OpenForms[0];
-                            }
-
-                            // Eğer hala null ise, varsayılan ekranı kullan
-                            Screen currentScreen = controlForScreen != null
-                                ? Screen.FromControl(controlForScreen)
-                                : Screen.PrimaryScreen ?? Screen.AllScreens[0];
-
-                            Rectangle screenBounds = currentScreen.WorkingArea;
-
-                            // Sağ kenarın taşmadığını kontrol et
-                            int x = screenBounds.Right - 250; // Form genişliği 250
-                            if (selectionRect.Right + 250 <= screenBounds.Right)
-                            {
-                                x = selectionRect.Right - 125; // Sağ kenarın ortasında
-                            }
-
-                            int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
-
-                            Point resultLocation = new Point(x, y);
-
-                            // API çağrısını başlat
-                            var analysisTask = requestGeminiService.AnalyzeImage(base64Image);
-
-                            // Sonuç formunu göster ve analiz task'ını ilet
-                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
-                            resultForm.Show();
+                            g.CopyFromScreen(selectionRect.Location, Point.Empty, selectionRect.Size);
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show($"API isteği sırasında hata oluştu: {ex.Message}",
-                                "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            Console.WriteLine($"Ekran görüntüsü alma hatası: {ex.Message}");
+                            SystemSounds.Beep.Play();
+                            await Task.Delay(150);
+                            SystemSounds.Beep.Play();
+                            // captureForm?.Close(); // Formu kapatmayı düşünebiliriz
+                            return;
                         }
                     }
-                    else
-                    {
-                        MessageBox.Show("API anahtarı bulunamadı. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
-                            "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                        // API anahtarı formunu göster
-                        ShowApiKeyForm();
+                    // Görseli bellekte tutarak base64'e çevir
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        bitmap.Save(ms, ImageFormat.Png);
+                        byte[] imageBytes = ms.ToArray();
+                        base64Image = Convert.ToBase64String(imageBytes);
                     }
+                } // using Bitmap
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Bitmap işleme hatası: {ex.Message}");
+                SystemSounds.Beep.Play();
+                await Task.Delay(150);
+                SystemSounds.Beep.Play();
+                // captureForm?.Close();
+                return;
+            }
+
+            // Capture formunu hemen kapatabilir veya gizleyebiliriz, API yanıtını beklemeden.
+            // captureForm?.Close(); // Veya captureForm?.Hide();
+
+            try
+            {
+                // Gemini API'yi çağır (Program instance'ındaki geminiService kullanılır)
+                string extractedText = await geminiService.AnalyzeImage(base64Image);
+
+                // Başarı durumunu kontrol et
+                if (string.IsNullOrEmpty(extractedText) ||
+                    extractedText.StartsWith("Hata oluştu:", StringComparison.OrdinalIgnoreCase) ||
+                    extractedText.StartsWith("API hatası:", StringComparison.OrdinalIgnoreCase) ||
+                    extractedText.Contains("Yanıt işlenemedi"))
+                {
+                    // Hata durumu: 2 bip sesi çal
+                    SystemSounds.Beep.Play();
+                    await Task.Delay(150); // Bip sesleri arasına kısa bir bekleme
+                    SystemSounds.Beep.Play();
+                    Console.WriteLine($"API veya Analiz Hatası: {extractedText}"); // Loglama
                 }
+                else
+                {
+                    // Başarı durumu: Metni panoya kopyala ve 1 bip sesi çal
+                    Thread staThread = new Thread(() =>
+                    {
+                        try
+                        {
+                            Clipboard.SetText($"Aşağıdaki soruyu güzelce çözmeni istiyorum. Soruyu bana nasıl çözdüğünü vs anlatmana gerek yok. Tek ihtiyacım sorunun cevabı. Tek demen gereken şey \"Sorunun cevabı: A) (a şıkkında ne yazıyorsa) şeklinde olmalı.\"\n\n{extractedText}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Pano hatası: {ex.Message}"); // Loglama
+                            // Hata durumunda belki 2 bip çalınabilir?
+                            // SystemSounds.Beep.Play();
+                            // Task.Delay(150).Wait(); // Thread içinde await kullanılamaz, Wait kullan.
+                            // SystemSounds.Beep.Play();
+                        }
+                    });
+                    staThread.SetApartmentState(ApartmentState.STA);
+                    staThread.Start();
+                    staThread.Join(); // Ana thread'in beklemesini sağla
+
+                    SystemSounds.Beep.Play();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Genel hata durumu: 2 bip sesi çal
+                SystemSounds.Beep.Play();
+                await Task.Delay(150);
+                SystemSounds.Beep.Play();
+                Console.WriteLine($"CaptureRegion Genel Hata: {ex.Message}"); // Loglama
+            }
+            finally
+            {
+                // İşlem bittikten sonra seçim formunu kapat (eğer hala açıksa)
+                captureForm?.Close();
             }
         }
 

@@ -119,7 +119,7 @@ namespace QSolver
             };
 
             // Menü öğelerini oluştur
-            var captureItem = new ToolStripMenuItem("Soru Seç")
+            var captureItem = new ToolStripMenuItem("Alıntı Yap")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
