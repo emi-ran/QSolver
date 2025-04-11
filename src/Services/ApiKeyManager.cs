@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace QSolver
 {
@@ -63,6 +64,11 @@ namespace QSolver
 
             int randomIndex = random.Next(apiKeys.Count);
             return apiKeys[randomIndex].Key;
+        }
+
+        public static List<string> GetAllApiKeys()
+        {
+            return apiKeys.Select(k => k.Key).ToList();
         }
 
         private static void LoadApiKeys()

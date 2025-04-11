@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -21,12 +22,15 @@ namespace QSolver
 
         public Program()
         {
+            LogHelper.LogInfo("Program başlatılıyor...");
+
             // API anahtarı yöneticisinden rastgele bir anahtar al
             string apiKey = ApiKeyManager.GetRandomApiKey();
 
             // Eğer hiç API anahtarı yoksa, kullanıcıya bildir
             if (string.IsNullOrEmpty(apiKey))
             {
+                LogHelper.LogWarning("API anahtarı bulunamadı");
                 MessageBox.Show(
                     "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
                     "Bilgi",
@@ -39,6 +43,7 @@ namespace QSolver
 
             // Tray icon servisini oluştur
             trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm);
+            LogHelper.LogInfo("Program başlatıldı");
         }
 
         // Statik gemini servisi erişimi için metot
@@ -54,15 +59,20 @@ namespace QSolver
 
         private void ShowApiKeyForm()
         {
+            LogHelper.LogInfo("API Anahtarları formu açılıyor");
             var apiKeyForm = new ApiKeyForm();
             apiKeyForm.ShowDialog();
+            LogHelper.LogInfo("API Anahtarları formu kapatıldı");
         }
 
         private void CaptureScreen()
         {
+            LogHelper.LogInfo("Ekran yakalama işlemi başlatılıyor");
+
             // API anahtarı kontrolü
             if (string.IsNullOrEmpty(ApiKeyManager.GetRandomApiKey()))
             {
+                LogHelper.LogWarning("API anahtarı bulunamadı");
                 MessageBox.Show(
                     "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
                     "Uyarı",
@@ -98,6 +108,7 @@ namespace QSolver
                 selectionRect = new Rectangle();
                 startPoint = Point.Empty;
                 captureForm = null;
+                LogHelper.LogInfo("Ekran yakalama formu kapatıldı");
             };
 
             // Mouse olaylarını ekle
@@ -108,6 +119,7 @@ namespace QSolver
                     startPoint = e.Location;
                     isSelecting = true;
                     selectionRect = new Rectangle();
+                    LogHelper.LogDebug($"Seçim başladı: X={e.X}, Y={e.Y}");
                 }
             };
 
@@ -131,6 +143,7 @@ namespace QSolver
                 {
                     isSelecting = false;
                     captureForm?.Hide();
+                    LogHelper.LogDebug($"Seçim tamamlandı: X={e.X}, Y={e.Y}, Genişlik={selectionRect.Width}, Yükseklik={selectionRect.Height}");
                     CaptureRegion();
                 }
             };
@@ -140,6 +153,7 @@ namespace QSolver
             {
                 if (e.KeyCode == Keys.Escape)
                 {
+                    LogHelper.LogInfo("Ekran yakalama işlemi kullanıcı tarafından iptal edildi");
                     captureForm?.Close();
                 }
             };
@@ -200,6 +214,7 @@ namespace QSolver
 
             captureForm.Show();
             fadeTimer.Start();
+            LogHelper.LogInfo("Ekran yakalama formu gösterildi");
 
             // Form kapatıldığında timer'ı temizle
             captureForm.FormClosed += (s, e) =>
@@ -212,6 +227,8 @@ namespace QSolver
         private void CaptureRegion()
         {
             if (selectionRect.Width <= 0 || selectionRect.Height <= 0) return;
+
+            LogHelper.LogInfo($"Bölge yakalanıyor: Genişlik={selectionRect.Width}, Yükseklik={selectionRect.Height}");
 
             using (Bitmap bitmap = new Bitmap(selectionRect.Width, selectionRect.Height))
             {
@@ -227,60 +244,47 @@ namespace QSolver
                     byte[] imageBytes = ms.ToArray();
                     string base64Image = Convert.ToBase64String(imageBytes);
 
-                    // Her istek için yeni bir API anahtarı al
-                    string apiKey = ApiKeyManager.GetRandomApiKey();
-                    if (!string.IsNullOrEmpty(apiKey))
+                    try
                     {
-                        // Yeni bir GeminiService örneği oluştur
-                        var requestGeminiService = new GeminiService(apiKey);
-
-                        try
+                        // Sonuç formunun konumunu belirle
+                        Control? controlForScreen = captureForm ?? Form.ActiveForm;
+                        if (controlForScreen == null && Application.OpenForms.Count > 0)
                         {
-                            // Sonuç formunun konumunu belirle
-                            Control? controlForScreen = captureForm ?? Form.ActiveForm;
-                            if (controlForScreen == null && Application.OpenForms.Count > 0)
-                            {
-                                controlForScreen = Application.OpenForms[0];
-                            }
-
-                            // Eğer hala null ise, varsayılan ekranı kullan
-                            Screen currentScreen = controlForScreen != null
-                                ? Screen.FromControl(controlForScreen)
-                                : Screen.PrimaryScreen ?? Screen.AllScreens[0];
-
-                            Rectangle screenBounds = currentScreen.WorkingArea;
-
-                            // Sağ kenarın taşmadığını kontrol et
-                            int x = screenBounds.Right - 250; // Form genişliği 250
-                            if (selectionRect.Right + 250 <= screenBounds.Right)
-                            {
-                                x = selectionRect.Right - 125; // Sağ kenarın ortasında
-                            }
-
-                            int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
-
-                            Point resultLocation = new Point(x, y);
-
-                            // API çağrısını başlat
-                            var analysisTask = requestGeminiService.AnalyzeImage(base64Image);
-
-                            // Sonuç formunu göster ve analiz task'ını ilet
-                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
-                            resultForm.Show();
+                            controlForScreen = Application.OpenForms[0];
                         }
-                        catch (Exception ex)
+
+                        // Eğer hala null ise, varsayılan ekranı kullan
+                        Screen currentScreen = controlForScreen != null
+                            ? Screen.FromControl(controlForScreen)
+                            : Screen.PrimaryScreen ?? Screen.AllScreens[0];
+
+                        Rectangle screenBounds = currentScreen.WorkingArea;
+
+                        // Sağ kenarın taşmadığını kontrol et
+                        int x = screenBounds.Right - 250; // Form genişliği 250
+                        if (selectionRect.Right + 250 <= screenBounds.Right)
                         {
-                            MessageBox.Show($"API isteği sırasında hata oluştu: {ex.Message}",
-                                "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            x = selectionRect.Right - 125; // Sağ kenarın ortasında
                         }
+
+                        int y = screenBounds.Height / 2 - 60; // Form yüksekliği 120 olduğu için yarısı
+
+                        Point resultLocation = new Point(x, y);
+
+                        // API çağrısını başlat
+                        LogHelper.LogInfo("Görsel analiz ediliyor...");
+                        var analysisTask = geminiService.AnalyzeImage(base64Image);
+
+                        // Sonuç formunu göster ve analiz task'ını ilet
+                        ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
+                        resultForm.Show();
+                        LogHelper.LogInfo("Sonuç formu gösterildi");
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        MessageBox.Show("API anahtarı bulunamadı. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
+                        LogHelper.LogError("API isteği sırasında hata oluştu", ex);
+                        MessageBox.Show($"API isteği sırasında hata oluştu: {ex.Message}",
                             "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                        // API anahtarı formunu göster
-                        ShowApiKeyForm();
                     }
                 }
             }
@@ -288,6 +292,7 @@ namespace QSolver
 
         private void Exit()
         {
+            LogHelper.LogInfo("Program kapatılıyor...");
             trayIconService?.Dispose();
             Application.Exit();
         }

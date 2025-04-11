@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Linq;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -41,6 +42,7 @@ namespace QSolver
 
         public GeminiService(string? apiKey)
         {
+            LogHelper.LogInfo("GeminiService başlatılıyor");
             this.apiKey = string.IsNullOrEmpty(apiKey) ?
                 ApiKeyManager.GetRandomApiKey() :
                 apiKey;
@@ -54,6 +56,7 @@ namespace QSolver
             if (!string.IsNullOrEmpty(newKey))
             {
                 apiKey = newKey;
+                LogHelper.LogDebug("API anahtarı güncellendi");
             }
         }
 
@@ -61,86 +64,115 @@ namespace QSolver
         {
             try
             {
-                // Her istekten önce API key'i güncelle
-                UpdateApiKey();
+                LogHelper.LogInfo("Görsel analiz ediliyor...");
+                List<string> triedKeys = new List<string>();
+                Exception? lastException = null;
 
-                // API isteği için JSON hazırla
-                var request = new GeminiRequest
+                // Tüm API anahtarlarını al
+                var allApiKeys = ApiKeyManager.GetAllApiKeys();
+                if (allApiKeys.Count == 0)
                 {
-                    contents = new[]
+                    throw new Exception("Kullanılabilir API anahtarı bulunamadı");
+                }
+
+                // Her API anahtarı için deneme yap
+                foreach (var currentKey in allApiKeys)
+                {
+                    if (triedKeys.Contains(currentKey)) continue;
+
+                    try
                     {
-                        new Content
+                        apiKey = currentKey;
+                        LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
+
+                        // API isteği için JSON hazırla
+                        var request = new GeminiRequest
                         {
-                            parts = new[]
+                            contents = new[]
                             {
-                                new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme. Eğer görselde hiçbir yazı yoksa sadece 'NO_TEXT_FOUND' yaz." },
-                                new Part
+                                new Content
                                 {
-                                    inline_data = new InlineData
+                                    parts = new[]
                                     {
-                                        mime_type = "image/png",
-                                        data = base64Image
+                                        new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme. Eğer görselde hiçbir yazı yoksa sadece 'NO_TEXT_FOUND' yaz." },
+                                        new Part
+                                        {
+                                            inline_data = new InlineData
+                                            {
+                                                mime_type = "image/png",
+                                                data = base64Image
+                                            }
+                                        }
                                     }
                                 }
                             }
+                        };
+
+                        string jsonRequest = JsonSerializer.Serialize(request);
+                        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                        // API'ye istek gönder
+                        var response = await httpClient.PostAsync($"{API_URL_BASE}/{OCR_MODEL}:generateContent?key={apiKey}", content);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            string errorContent = await response.Content.ReadAsStringAsync();
+                            LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
+
+                            // Kota hatası ise diğer anahtarı dene
+                            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                            {
+                                triedKeys.Add(currentKey);
+                                lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                                continue;
+                            }
+
+                            return $"API hatası: HTTP {(int)response.StatusCode} - {errorContent}";
                         }
+
+                        var jsonResponse = await response.Content.ReadAsStringAsync();
+                        LogHelper.LogDebug($"Gemini OCR yanıtı: {jsonResponse}");
+
+                        // Yanıtı işle
+                        using JsonDocument document = JsonDocument.Parse(jsonResponse);
+                        var root = document.RootElement;
+
+                        if (root.TryGetProperty("candidates", out var candidates) &&
+                            candidates.GetArrayLength() > 0 &&
+                            candidates[0].TryGetProperty("content", out var contentElement) &&
+                            contentElement.TryGetProperty("parts", out var parts) &&
+                            parts.GetArrayLength() > 0 &&
+                            parts[0].TryGetProperty("text", out var textElement))
+                        {
+                            string result = textElement.GetString() ?? "Yanıt alınamadı.";
+                            LogHelper.LogInfo($"Görsel analiz sonucu: {result}");
+                            return result;
+                        }
+
+                        LogHelper.LogWarning("API yanıtı beklenen formatta değil");
+                        return "Yanıt işlenemedi. API yanıtı beklenen formatta değil.";
                     }
-                };
-
-                string jsonRequest = JsonSerializer.Serialize(request);
-                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-                // API'ye istek gönder
-                var response = await httpClient.PostAsync($"{API_URL_BASE}/{OCR_MODEL}:generateContent?key={apiKey}", content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    return $"API hatası: HTTP {(int)response.StatusCode} - {errorContent}";
+                    catch (Exception ex)
+                    {
+                        triedKeys.Add(currentKey);
+                        lastException = ex;
+                        LogHelper.LogError($"API anahtarı ile hata oluştu: {currentKey.Substring(0, 5)}...", ex);
+                        continue;
+                    }
                 }
 
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-
-                // Yanıtı işle
-                using JsonDocument document = JsonDocument.Parse(jsonResponse);
-                var root = document.RootElement;
-
-                if (root.TryGetProperty("candidates", out var candidates) &&
-                    candidates.GetArrayLength() > 0 &&
-                    candidates[0].TryGetProperty("content", out var contentElement) &&
-                    contentElement.TryGetProperty("parts", out var parts) &&
-                    parts.GetArrayLength() > 0 &&
-                    parts[0].TryGetProperty("text", out var textElement))
+                // Tüm anahtarlar denenmiş ve başarısız olmuşsa
+                if (lastException != null)
                 {
-                    string result = textElement.GetString() ?? "Yanıt alınamadı.";
-
-                    // ``` işaretlerini kaldır
-                    result = result.Replace("```", "");
-
-                    // Başındaki "text" kelimesini kaldır
-                    if (result.StartsWith("text", StringComparison.OrdinalIgnoreCase))
-                    {
-                        result = result.Substring(4).TrimStart();
-                    }
-
-                    // Görselde yazı yoksa özel JSON yanıtı döndür
-                    if (result.Contains("NO_TEXT_FOUND") ||
-                        string.IsNullOrWhiteSpace(result) ||
-                        result.Contains("görselde yazı yok", StringComparison.OrdinalIgnoreCase) ||
-                        result.Contains("görselde metin yok", StringComparison.OrdinalIgnoreCase) ||
-                        result.Contains("görselde hiçbir yazı yok", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return "{\"question_not_found\":\"try_again\"}";
-                    }
-
-                    return string.IsNullOrWhiteSpace(result) ? "Görselde metin bulunamadı." : result;
+                    throw lastException;
                 }
 
-                return "Yanıt işlenemedi. API yanıtı beklenen formatta değil.";
+                throw new Exception("Tüm API anahtarları denenmiş ve başarısız olmuş");
             }
             catch (Exception ex)
             {
-                return $"Hata oluştu: {ex.Message}";
+                LogHelper.LogError("Görsel analizi sırasında hata oluştu", ex);
+                throw;
             }
         }
 
@@ -148,21 +180,39 @@ namespace QSolver
         {
             try
             {
-                // Her istekten önce API key'i güncelle
-                UpdateApiKey();
+                LogHelper.LogInfo("Soru çözülüyor...");
+                List<string> triedKeys = new List<string>();
+                Exception? lastException = null;
 
-                // API isteği için JSON hazırla
-                var request = new GeminiRequest
+                // Tüm API anahtarlarını al
+                var allApiKeys = ApiKeyManager.GetAllApiKeys();
+                if (allApiKeys.Count == 0)
                 {
-                    contents = new[]
+                    throw new Exception("Kullanılabilir API anahtarı bulunamadı");
+                }
+
+                // Her API anahtarı için deneme yap
+                foreach (var currentKey in allApiKeys)
+                {
+                    if (triedKeys.Contains(currentKey)) continue;
+
+                    try
                     {
-                        new Content
+                        apiKey = currentKey;
+                        LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
+
+                        // API isteği için JSON hazırla
+                        var request = new GeminiRequest
                         {
-                            parts = new[]
+                            contents = new[]
                             {
-                                new Part
+                                new Content
                                 {
-                                    text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz. 
+                                    parts = new[]
+                                    {
+                                        new Part
+                                        {
+                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz. 
 Çözümün sonunda hangi şıkkın doğru olduğunu belirt. 
 
 ÖNEMLİ: Eğer birden fazla soru numarası varsa (örneğin: ""43. Soru"", ""44. Soru"" gibi), bunları BİRDEN FAZLA SORU olarak değerlendir ve SADECE TEK BİR JSON formatında cevap ver.
@@ -187,47 +237,79 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
 
 Soru:
 " + questionText
+                                        }
+                                    }
                                 }
                             }
+                        };
+
+                        string jsonRequest = JsonSerializer.Serialize(request);
+                        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                        // API'ye istek gönder
+                        var response = await httpClient.PostAsync($"{API_URL_BASE}/{SOLVER_MODEL}:generateContent?key={apiKey}", content);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            string errorContent = await response.Content.ReadAsStringAsync();
+                            LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
+
+                            // Kota hatası ise diğer anahtarı dene
+                            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                            {
+                                triedKeys.Add(currentKey);
+                                lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                                continue;
+                            }
+
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata");
                         }
+
+                        var jsonResponse = await response.Content.ReadAsStringAsync();
+                        LogHelper.LogDebug($"Gemini Solver yanıtı: {jsonResponse}");
+
+                        // Yanıtı işle
+                        using JsonDocument document = JsonDocument.Parse(jsonResponse);
+                        var root = document.RootElement;
+
+                        if (root.TryGetProperty("candidates", out var candidates) &&
+                            candidates.GetArrayLength() > 0 &&
+                            candidates[0].TryGetProperty("content", out var contentElement) &&
+                            contentElement.TryGetProperty("parts", out var parts) &&
+                            parts.GetArrayLength() > 0 &&
+                            parts[0].TryGetProperty("text", out var textElement))
+                        {
+                            string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
+                            string answer = ExtractAnswer(fullResponse);
+                            LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
+                            LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
+                            return (fullResponse, answer);
+                        }
+
+                        LogHelper.LogWarning("API yanıtı beklenen formatta değil");
+                        return ("Yanıt işlenemedi.", "Hata");
                     }
-                };
-
-                string jsonRequest = JsonSerializer.Serialize(request);
-                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-                // API'ye istek gönder
-                var response = await httpClient.PostAsync($"{API_URL_BASE}/{SOLVER_MODEL}:generateContent?key={apiKey}", content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    return ($"API hatası: {response.StatusCode}\nDetay: {errorContent}", "Hata");
+                    catch (Exception ex)
+                    {
+                        triedKeys.Add(currentKey);
+                        lastException = ex;
+                        LogHelper.LogError($"API anahtarı ile hata oluştu: {currentKey.Substring(0, 5)}...", ex);
+                        continue;
+                    }
                 }
 
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-
-                // Yanıtı işle
-                using JsonDocument document = JsonDocument.Parse(jsonResponse);
-                var root = document.RootElement;
-
-                if (root.TryGetProperty("candidates", out var candidates) &&
-                    candidates.GetArrayLength() > 0 &&
-                    candidates[0].TryGetProperty("content", out var contentElement) &&
-                    contentElement.TryGetProperty("parts", out var parts) &&
-                    parts.GetArrayLength() > 0 &&
-                    parts[0].TryGetProperty("text", out var textElement))
+                // Tüm anahtarlar denenmiş ve başarısız olmuşsa
+                if (lastException != null)
                 {
-                    string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
-                    string answer = ExtractAnswer(fullResponse);
-                    return (fullResponse, answer);
+                    throw lastException;
                 }
 
-                return ("Yanıt işlenemedi.", "Hata");
+                throw new Exception("Tüm API anahtarları denenmiş ve başarısız olmuş");
             }
             catch (Exception ex)
             {
-                return ($"Hata oluştu: {ex.Message}", "Hata");
+                LogHelper.LogError("Soru çözümü sırasında hata oluştu", ex);
+                throw;
             }
         }
 

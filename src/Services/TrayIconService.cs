@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
 using System.Drawing.Drawing2D;
+using QSolver.Forms;
 
 namespace QSolver
 {
@@ -135,6 +136,13 @@ namespace QSolver
 
             var separator = new ToolStripSeparator();
 
+            var logsItem = new ToolStripMenuItem("Logları Görüntüle")
+            {
+                ForeColor = Color.FromArgb(241, 241, 241),
+                Padding = new Padding(8, 4, 8, 4)
+            };
+            logsItem.Click += Logs_Click;
+
             var exitItem = new ToolStripMenuItem("Çıkış")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
@@ -146,6 +154,7 @@ namespace QSolver
             contextMenu.Items.Add(captureItem);
             contextMenu.Items.Add(apiKeysItem);
             contextMenu.Items.Add(separator);
+            contextMenu.Items.Add(logsItem);
             contextMenu.Items.Add(exitItem);
 
             trayIcon = new NotifyIcon()
@@ -154,6 +163,15 @@ namespace QSolver
                 ContextMenuStrip = contextMenu,
                 Visible = true,
                 Text = "QSolver"
+            };
+
+            // İkona tıklandığında ekran yakalama işlemini başlat
+            trayIcon.Click += (s, e) =>
+            {
+                if (e is MouseEventArgs mouseArgs && mouseArgs.Button == MouseButtons.Left)
+                {
+                    captureScreenAction?.Invoke();
+                }
             };
         }
 
@@ -165,6 +183,12 @@ namespace QSolver
         private void ApiKeys_Click(object? sender, EventArgs e)
         {
             apiKeysAction?.Invoke();
+        }
+
+        private void Logs_Click(object? sender, EventArgs e)
+        {
+            var logViewerForm = new LogViewerForm();
+            logViewerForm.Show();
         }
 
         private void Exit_Click(object? sender, EventArgs e)
