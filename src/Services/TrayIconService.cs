@@ -155,6 +155,17 @@ namespace QSolver
                 Visible = true,
                 Text = "QSolver"
             };
+
+            // Sol tıklama olayını ekle
+            trayIcon.MouseClick += TrayIcon_MouseClick;
+        }
+
+        private void TrayIcon_MouseClick(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                captureScreenAction?.Invoke();
+            }
         }
 
         private void CaptureScreen_Click(object? sender, EventArgs e)
@@ -176,6 +187,16 @@ namespace QSolver
         {
             trayIcon.Visible = false;
             trayIcon.Dispose();
+        }
+
+        public void ShowNotification(string title, string message)
+        {
+            trayIcon.ShowBalloonTip(
+                3000, // 3 saniye gösterilecek
+                title,
+                message,
+                ToolTipIcon.Info
+            );
         }
     }
 }

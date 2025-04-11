@@ -289,7 +289,13 @@ namespace QSolver
                     {
                         try
                         {
-                            Clipboard.SetText($"Aşağıdaki soruyu güzelce çözmeni istiyorum. Soruyu bana nasıl çözdüğünü vs anlatmana gerek yok. Tek ihtiyacım sorunun cevabı. Tek demen gereken şey \"Sorunun cevabı: A) (a şıkkında ne yazıyorsa) şeklinde olmalı.\"\n\n{extractedText}");
+                            Clipboard.SetText($"Aşağıdaki soruyu güzelce çözmek istiyorum. Soruyu bana nasıl çözdüğünü vs anlatmana gerek yok. Tek ihtiyacım sorunun cevabı. Tek demen gereken şey \"Sorunun cevabı: A) (a şıkkında ne yazıyorsa) şeklinde olmalı.\"\n\n{extractedText}");
+
+                            // Başarılı kopyalama bildirimi göster
+                            trayIconService?.ShowNotification(
+                                "QSolver",
+                                "Metin başarıyla panoya kopyalandı!"
+                            );
                         }
                         catch (Exception ex)
                         {
