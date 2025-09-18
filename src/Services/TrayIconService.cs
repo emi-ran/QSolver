@@ -101,13 +101,15 @@ namespace QSolver
         private readonly Action exitAction;
         private readonly Action apiKeysAction;
         private readonly Action settingsAction;
+        private readonly Action historyAction;
 
-        public TrayIconService(Action captureScreenAction, Action exitAction, Action apiKeysAction, Action settingsAction)
+        public TrayIconService(Action captureScreenAction, Action exitAction, Action apiKeysAction, Action settingsAction, Action historyAction)
         {
             this.captureScreenAction = captureScreenAction;
             this.exitAction = exitAction;
             this.apiKeysAction = apiKeysAction;
             this.settingsAction = settingsAction;
+            this.historyAction = historyAction;
 
             // Icon dosyasının yolunu al
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "qsolver.ico");
@@ -121,50 +123,67 @@ namespace QSolver
                 Padding = new Padding(3, 2, 3, 2)
             };
 
-            // Menü öğelerini oluştur
-            var captureItem = new ToolStripMenuItem("Soru Seç")
+            // Ana işlemler
+            var captureItem = new ToolStripMenuItem("🔍 Soru Seç")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
-                Padding = new Padding(8, 4, 8, 4)
+                Padding = new Padding(8, 4, 8, 4),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             captureItem.Click += CaptureScreen_Click;
 
-            var apiKeysItem = new ToolStripMenuItem("API Anahtarları")
+            var historyItem = new ToolStripMenuItem("📚 Çözüm Geçmişi")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
             };
-            apiKeysItem.Click += ApiKeys_Click;
+            historyItem.Click += History_Click;
 
-            var settingsItem = new ToolStripMenuItem("Ayarlar")
+            var separator1 = new ToolStripSeparator();
+
+            // Ayarlar ve Konfigürasyon
+            var settingsItem = new ToolStripMenuItem("⚙️ Ayarlar")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
             };
             settingsItem.Click += Settings_Click;
 
-            var separator = new ToolStripSeparator();
+            var apiKeysItem = new ToolStripMenuItem("🔑 API Anahtarları")
+            {
+                ForeColor = Color.FromArgb(241, 241, 241),
+                Padding = new Padding(8, 4, 8, 4)
+            };
+            apiKeysItem.Click += ApiKeys_Click;
 
-            var logsItem = new ToolStripMenuItem("Logları Görüntüle")
+            var separator2 = new ToolStripSeparator();
+
+            // Araçlar ve Yardım
+            var logsItem = new ToolStripMenuItem("📋 Logları Görüntüle")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
             };
             logsItem.Click += Logs_Click;
 
-            var exitItem = new ToolStripMenuItem("Çıkış")
+            var separator3 = new ToolStripSeparator();
+
+            var exitItem = new ToolStripMenuItem("❌ Çıkış")
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
             };
             exitItem.Click += Exit_Click;
 
-            // Menü öğelerini ekle
+            // Menü öğelerini kategorilere göre ekle
             contextMenu.Items.Add(captureItem);
-            contextMenu.Items.Add(apiKeysItem);
+            contextMenu.Items.Add(historyItem);
+            contextMenu.Items.Add(separator1);
             contextMenu.Items.Add(settingsItem);
-            contextMenu.Items.Add(separator);
+            contextMenu.Items.Add(apiKeysItem);
+            contextMenu.Items.Add(separator2);
             contextMenu.Items.Add(logsItem);
+            contextMenu.Items.Add(separator3);
             contextMenu.Items.Add(exitItem);
 
             trayIcon = new NotifyIcon()
@@ -198,6 +217,11 @@ namespace QSolver
         private void Settings_Click(object? sender, EventArgs e)
         {
             settingsAction?.Invoke();
+        }
+
+        private void History_Click(object? sender, EventArgs e)
+        {
+            historyAction?.Invoke();
         }
 
         private void Logs_Click(object? sender, EventArgs e)

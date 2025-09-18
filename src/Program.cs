@@ -43,7 +43,7 @@ namespace QSolver
             staticGeminiService = geminiService;
 
             // Tray icon servisini oluştur
-            trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm);
+            trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm, ShowHistoryForm);
             LogHelper.LogInfo("Program başlatıldı");
         }
 
@@ -72,6 +72,14 @@ namespace QSolver
             var settingsForm = new SettingsForm();
             settingsForm.ShowDialog();
             LogHelper.LogInfo("Ayarlar formu kapatıldı");
+        }
+
+        private void ShowHistoryForm()
+        {
+            LogHelper.LogInfo("Çözüm geçmişi formu açılıyor");
+            var historyForm = new SolutionHistoryForm();
+            historyForm.ShowDialog();
+            LogHelper.LogInfo("Çözüm geçmişi formu kapatıldı");
         }
 
         private void CaptureScreen()
@@ -253,6 +261,9 @@ namespace QSolver
                     byte[] imageBytes = ms.ToArray();
                     string base64Image = Convert.ToBase64String(imageBytes);
 
+                    // Screenshot'ı geçmiş için sakla
+                    byte[] screenshotData = imageBytes;
+
                     try
                     {
                         // Sonuç formunun konumunu belirle
@@ -290,7 +301,7 @@ namespace QSolver
                             var directSolveTask = geminiService.SolveQuestionDirectly(base64Image);
 
                             // Sonuç formunu göster ve task'ı ilet
-                            ResultForm resultForm = new ResultForm(resultLocation, directSolveTask);
+                            ResultForm resultForm = new ResultForm(resultLocation, directSolveTask, screenshotData, true);
                             resultForm.Show();
                             LogHelper.LogInfo("Sonuç formu (turbo mod) gösterildi");
                         }
@@ -301,7 +312,7 @@ namespace QSolver
                             var analysisTask = geminiService.AnalyzeImage(base64Image);
 
                             // Sonuç formunu göster ve analiz task'ını ilet
-                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
+                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask, screenshotData, false);
                             resultForm.Show();
                             LogHelper.LogInfo("Sonuç formu gösterildi");
                         }

@@ -313,7 +313,7 @@ Soru:
             }
         }
 
-        public async Task<(string fullResponse, string answer)> SolveQuestionDirectly(string base64Image)
+        public async Task<(string fullResponse, string answer, string title)> SolveQuestionDirectly(string base64Image)
         {
             try
             {
@@ -350,16 +350,18 @@ Soru:
                                         new Part
                                         {
                                             text = @"Sen bir soru çözme yapay zekasısın. Bu görseldeki soruları analiz edip adım adım çöz. 
-Çözümün sonunda hangi şıkkın doğru olduğunu belirt. 
+Çözümün sonunda hangi şıkkın doğru olduğunu belirt ve soru için bir başlık üret.
 
 ÖNEMLİ: Eğer birden fazla soru numarası varsa (örneğin: ""43. Soru"", ""44. Soru"" gibi), bunları BİRDEN FAZLA SORU olarak değerlendir ve SADECE TEK BİR JSON formatında cevap ver.
 
 ÇOK ÖNEMLİ: Soruları çözdükten sonra, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE doğru sırala. Örneğin, sorular 44, 49, 45, 50 sırasıyla verilmişse, cevapları 44, 45, 49, 50 sırasıyla (yani küçükten büyüğe) ver. CEVAPLARI MUTLAKA SORU NUMARALARINA GÖRE SIRALA!
 
 Cevabını şu formatta bitir:
-- Tek bir soru için: { ""solved"":""true"", ""answers"":""X"" } formatını kullan (X yerine doğru şıkkı yaz)
-- Birden fazla soru için: { ""solved"":""true"", ""answers"":""X,Y,Z,..."" } formatını kullan (Her soru için doğru şıkkı virgülle ayırarak yaz, ASLA her soru için ayrı JSON formatı verme!)
-- Eğer çözemediysen: { ""solved"":""false"" }
+- Tek bir soru için: { ""title"":""Kısa başlık (max 50 kar)"", ""solved"":""true"", ""answers"":""X"" }
+- Birden fazla soru için: { ""title"":""Kısa başlık (max 50 kar)"", ""solved"":""true"", ""answers"":""X,Y,Z,..."" }
+- Eğer çözemediysen: { ""title"":""Çözülemeyen Soru"", ""solved"":""false"" }
+
+Başlık soru konusunu kısa ve açık şekilde belirtsin (örn: ""Matematik: Türev"", ""Fizik: Hareket"", ""Türkçe: Dil Bilgisi"" gibi).
 
 TEKRAR: Eğer görselde numaralı sorular varsa (örn: 44, 49, 45, 50), soruları çözdükten sonra CEVAPLARI SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE DOĞRU SIRALA ve tek bir JSON'da ver.
 Örnek: Sorular 44, 49, 45, 50 sırasıyla verilmiş olsun ve cevapları A, B, C, D olsun. Doğru sıralama şöyle olacaktır:
@@ -405,7 +407,7 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
                                 continue;
                             }
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata");
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası");
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -424,13 +426,15 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
                         {
                             string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
                             string answer = ExtractAnswer(fullResponse);
+                            string title = ExtractTitle(fullResponse);
                             LogHelper.LogInfo($"Doğrudan soru çözüm sonucu: {fullResponse}");
                             LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                            return (fullResponse, answer);
+                            LogHelper.LogInfo($"Çıkarılan başlık: {title}");
+                            return (fullResponse, answer, title);
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata");
+                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru");
                     }
                     catch (Exception ex)
                     {
@@ -516,6 +520,159 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
             catch
             {
                 return "?";
+            }
+        }
+
+        public async Task<string> GenerateQuestionTitle(string questionText)
+        {
+            try
+            {
+                LogHelper.LogInfo("Soru başlığı üretiliyor...");
+
+                // API isteği için JSON hazırla
+                var request = new GeminiRequest
+                {
+                    contents = new[]
+                    {
+                        new Content
+                        {
+                            parts = new[]
+                            {
+                                new Part
+                                {
+                                    text = $"Bu soru metni için kısa ve açıklayıcı bir başlık üret. Maksimum 50 karakter olsun. Sadece başlığı ver, JSON formatında değil. Soru metni: {questionText}"
+                                }
+                            }
+                        }
+                    }
+                };
+
+                string jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                // API'ye istek gönder
+                var selectedModel = SettingsService.GetSelectedModel();
+                var response = await httpClient.PostAsync($"{API_URL_BASE}/{selectedModel}:generateContent?key={apiKey}", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorContent = await response.Content.ReadAsStringAsync();
+                    LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
+                    return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                LogHelper.LogDebug($"Gemini Title yanıtı: {jsonResponse}");
+
+                var cleanTitle = CleanTitle(jsonResponse);
+
+                // Başlık çok uzunsa kısalt
+                if (cleanTitle.Length > 50)
+                {
+                    cleanTitle = cleanTitle.Substring(0, 47) + "...";
+                }
+
+                LogHelper.LogInfo($"Üretilen başlık: {cleanTitle}");
+                return cleanTitle;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError($"Title generation error: {ex.Message}");
+                // Hata durumunda varsayılan başlık döndür
+                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+            }
+        }
+
+        private string ExtractTitle(string response)
+        {
+            try
+            {
+                // JSON formatından title çıkar
+                if (response.Contains("\"title\""))
+                {
+                    // JSON içerisinden title çıkarmaya çalış
+                    var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        if (line.Contains("\"title\":"))
+                        {
+                            // { "title":"başlık", "solved":"true", "answers":"B" } formatını parse et
+                            try
+                            {
+                                var jsonStart = line.IndexOf('{');
+                                var jsonEnd = line.LastIndexOf('}');
+                                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                                {
+                                    var jsonStr = line.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                                    var jsonDoc = JsonDocument.Parse(jsonStr);
+                                    if (jsonDoc.RootElement.TryGetProperty("title", out var titleElement))
+                                    {
+                                        var title = titleElement.GetString() ?? "";
+                                        if (!string.IsNullOrWhiteSpace(title))
+                                        {
+                                            return title.Length > 50 ? title.Substring(0, 47) + "..." : title;
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                // JSON parse hatası, devam et
+                            }
+                        }
+                    }
+                }
+
+                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+            }
+            catch
+            {
+                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+            }
+        }
+
+        private string CleanTitle(string response)
+        {
+            try
+            {
+                // JSON response'u parse et
+                var jsonDoc = JsonDocument.Parse(response);
+                var content = jsonDoc.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString() ?? "";
+
+                // Gereksiz karakterleri temizle
+                content = content.Trim()
+                    .Replace("\"", "")
+                    .Replace("'", "")
+                    .Replace("\n", " ")
+                    .Replace("\r", " ");
+
+                // JSON formatında gelirse parse et
+                if (content.StartsWith("{") && content.Contains("title"))
+                {
+                    try
+                    {
+                        var titleJson = JsonDocument.Parse(content);
+                        if (titleJson.RootElement.TryGetProperty("title", out var titleElement))
+                        {
+                            content = titleElement.GetString() ?? content;
+                        }
+                    }
+                    catch
+                    {
+                        // JSON parse edilemezse orijinal içeriği kullan
+                    }
+                }
+
+                return string.IsNullOrWhiteSpace(content) ? $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}" : content;
+            }
+            catch
+            {
+                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
             }
         }
     }

@@ -19,6 +19,8 @@ namespace QSolver
         private string questionText = string.Empty;
         private string solutionText = string.Empty;
         private string answerLetter = string.Empty;
+        private byte[]? screenshotData;
+        private bool isTurboMode;
 
         private enum FormState
         {
@@ -34,8 +36,10 @@ namespace QSolver
         private float currentOpacity = 0.0f;
         private bool isFadingIn = true;
 
-        public ResultForm(Point location, Task<string> analysisTask)
+        public ResultForm(Point location, Task<string> analysisTask, byte[]? screenshotData = null, bool isTurboMode = false)
         {
+            this.screenshotData = screenshotData;
+            this.isTurboMode = isTurboMode;
             InitializeForm(location);
 
             // Analiz görevini başlat
@@ -43,8 +47,10 @@ namespace QSolver
         }
 
         // Turbo mode için constructor
-        public ResultForm(Point location, Task<(string fullResponse, string answer)> directSolveTask)
+        public ResultForm(Point location, Task<(string fullResponse, string answer, string title)> directSolveTask, byte[]? screenshotData = null, bool isTurboMode = true)
         {
+            this.screenshotData = screenshotData;
+            this.isTurboMode = isTurboMode;
             InitializeForm(location);
 
             // Doğrudan çözme görevini başlat
@@ -430,7 +436,7 @@ namespace QSolver
             }
         }
 
-        private async void WaitForDirectSolve(Task<(string fullResponse, string answer)> directSolveTask)
+        private async void WaitForDirectSolve(Task<(string fullResponse, string answer, string title)> directSolveTask)
         {
             try
             {
@@ -452,10 +458,11 @@ namespace QSolver
                     });
                 }
 
-                var (fullResponse, answer) = await directSolveTask;
+                var (fullResponse, answer, title) = await directSolveTask;
 
                 solutionText = fullResponse;
                 answerLetter = answer;
+                questionText = title; // Başlığı questionText olarak kullan
 
                 // JSON formatında cevap var mı kontrol et
                 if (answer == "?" || answer == "Hata")
@@ -481,6 +488,9 @@ namespace QSolver
                         solutionStepsButton.Visible = true;
 
                         currentState = FormState.Solved;
+
+                        // Geçmişe kaydet
+                        SaveToHistory();
                     });
                 }
             }
@@ -591,6 +601,9 @@ namespace QSolver
                         solutionStepsButton.Visible = true;
 
                         currentState = FormState.Solved;
+
+                        // Geçmişe kaydet
+                        SaveToHistory();
                     });
                 }
             }
@@ -644,6 +657,29 @@ namespace QSolver
                 MessageBox.Show("İşlem iptal edildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             base.OnFormClosing(e);
+        }
+
+        private async void SaveToHistory()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(answerLetter) && answerLetter != "?" && answerLetter != "Hata" && screenshotData != null)
+                {
+                    string questionForHistory = isTurboMode ? questionText : questionText; // Her iki modda da questionText kullan (title içeriyor)
+                    await SolutionHistoryService.AddSolutionToHistory(
+                        questionForHistory,
+                        answerLetter,
+                        solutionText,
+                        screenshotData,
+                        isTurboMode
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Geçmişe kaydetme hatası, sessizce geç
+                System.Diagnostics.Debug.WriteLine($"Geçmişe kaydetme hatası: {ex.Message}");
+            }
         }
 
         protected override void Dispose(bool disposing)
