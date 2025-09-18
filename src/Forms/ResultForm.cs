@@ -8,12 +8,12 @@ namespace QSolver
 {
     public class ResultForm : Form
     {
-        private readonly Label thinkingLabel;
-        private readonly Label resultLabel;
-        private readonly Button confirmButton;
-        private readonly Button editButton;
-        private readonly Button solutionStepsButton;
-        private readonly System.Windows.Forms.Timer animationTimer;
+        private Label thinkingLabel = null!;
+        private Label resultLabel = null!;
+        private Button confirmButton = null!;
+        private Button editButton = null!;
+        private Button solutionStepsButton = null!;
+        private System.Windows.Forms.Timer animationTimer = null!;
         private int animationDots = 0;
 
         private string questionText = string.Empty;
@@ -30,11 +30,28 @@ namespace QSolver
 
         private FormState currentState;
 
-        private readonly System.Windows.Forms.Timer fadeTimer;
+        private System.Windows.Forms.Timer fadeTimer = null!;
         private float currentOpacity = 0.0f;
         private bool isFadingIn = true;
 
         public ResultForm(Point location, Task<string> analysisTask)
+        {
+            InitializeForm(location);
+
+            // Analiz görevini başlat
+            WaitForAnalysis(analysisTask);
+        }
+
+        // Turbo mode için constructor
+        public ResultForm(Point location, Task<(string fullResponse, string answer)> directSolveTask)
+        {
+            InitializeForm(location);
+
+            // Doğrudan çözme görevini başlat
+            WaitForDirectSolve(directSolveTask);
+        }
+
+        private void InitializeForm(Point location)
         {
             SetStyle(ControlStyles.OptimizedDoubleBuffer |
                     ControlStyles.AllPaintingInWmPaint |
@@ -239,9 +256,6 @@ namespace QSolver
                 fadeTimer.Start();
                 animationTimer.Start();
             };
-
-            // Analiz görevini başlat
-            WaitForAnalysis(analysisTask);
         }
 
         private void FadeOutAndClose()
@@ -411,6 +425,84 @@ namespace QSolver
                         editButton.Visible = true;
 
                         currentState = FormState.Analyzed;
+                    });
+                }
+            }
+        }
+
+        private async void WaitForDirectSolve(Task<(string fullResponse, string answer)> directSolveTask)
+        {
+            try
+            {
+                // Turbo modda doğrudan çözme durumunu ayarla
+                currentState = FormState.Solving;
+
+                // UI'ı güncelle - "Soru Çözülüyor" göster
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        thinkingLabel.Text = "Soru Çözülüyor...";
+                        thinkingLabel.Visible = true;
+                        resultLabel.Visible = false;
+                        confirmButton.Visible = false;
+                        editButton.Visible = false;
+                        solutionStepsButton.Visible = false;
+                        animationTimer.Start();
+                    });
+                }
+
+                var (fullResponse, answer) = await directSolveTask;
+
+                solutionText = fullResponse;
+                answerLetter = answer;
+
+                // JSON formatında cevap var mı kontrol et
+                if (answer == "?" || answer == "Hata")
+                {
+                    answerLetter = "Yapay zeka gerekli cevabı veremedi";
+                }
+
+                // Çözüm tamamlandığında UI'ı güncelle
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+
+                        // Cevap tek harf mi kontrol et
+                        string prefix = answerLetter.Length == 1 ? "Cevap: " : "Cevaplar: ";
+                        resultLabel.Text = prefix + answerLetter;
+
+                        resultLabel.Visible = true;
+                        confirmButton.Text = "Tamam";
+                        confirmButton.Visible = true;
+                        solutionStepsButton.Visible = true;
+
+                        currentState = FormState.Solved;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Hata durumunda UI'ı güncelle
+                answerLetter = $"Hata oluştu: {ex.Message}";
+                solutionText = "Doğrudan çözüm sırasında hata oluştu.";
+
+                if (this.IsHandleCreated)
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        animationTimer.Stop();
+                        thinkingLabel.Visible = false;
+                        resultLabel.Text = "Çözüm sırasında hata oluştu";
+                        resultLabel.Visible = true;
+                        confirmButton.Text = "Tamam";
+                        confirmButton.Visible = true;
+                        solutionStepsButton.Visible = true;
+
+                        currentState = FormState.Solved;
                     });
                 }
             }

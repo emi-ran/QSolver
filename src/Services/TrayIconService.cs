@@ -100,12 +100,14 @@ namespace QSolver
         private readonly Action captureScreenAction;
         private readonly Action exitAction;
         private readonly Action apiKeysAction;
+        private readonly Action settingsAction;
 
-        public TrayIconService(Action captureScreenAction, Action exitAction, Action apiKeysAction)
+        public TrayIconService(Action captureScreenAction, Action exitAction, Action apiKeysAction, Action settingsAction)
         {
             this.captureScreenAction = captureScreenAction;
             this.exitAction = exitAction;
             this.apiKeysAction = apiKeysAction;
+            this.settingsAction = settingsAction;
 
             // Icon dosyasının yolunu al
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "qsolver.ico");
@@ -134,6 +136,13 @@ namespace QSolver
             };
             apiKeysItem.Click += ApiKeys_Click;
 
+            var settingsItem = new ToolStripMenuItem("Ayarlar")
+            {
+                ForeColor = Color.FromArgb(241, 241, 241),
+                Padding = new Padding(8, 4, 8, 4)
+            };
+            settingsItem.Click += Settings_Click;
+
             var separator = new ToolStripSeparator();
 
             var logsItem = new ToolStripMenuItem("Logları Görüntüle")
@@ -153,6 +162,7 @@ namespace QSolver
             // Menü öğelerini ekle
             contextMenu.Items.Add(captureItem);
             contextMenu.Items.Add(apiKeysItem);
+            contextMenu.Items.Add(settingsItem);
             contextMenu.Items.Add(separator);
             contextMenu.Items.Add(logsItem);
             contextMenu.Items.Add(exitItem);
@@ -183,6 +193,11 @@ namespace QSolver
         private void ApiKeys_Click(object? sender, EventArgs e)
         {
             apiKeysAction?.Invoke();
+        }
+
+        private void Settings_Click(object? sender, EventArgs e)
+        {
+            settingsAction?.Invoke();
         }
 
         private void Logs_Click(object? sender, EventArgs e)

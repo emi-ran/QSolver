@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
 using QSolver.Helpers;
+using QSolver.Forms;
 
 namespace QSolver
 {
@@ -42,7 +43,7 @@ namespace QSolver
             staticGeminiService = geminiService;
 
             // Tray icon servisini oluştur
-            trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm);
+            trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm);
             LogHelper.LogInfo("Program başlatıldı");
         }
 
@@ -63,6 +64,14 @@ namespace QSolver
             var apiKeyForm = new ApiKeyForm();
             apiKeyForm.ShowDialog();
             LogHelper.LogInfo("API Anahtarları formu kapatıldı");
+        }
+
+        private void ShowSettingsForm()
+        {
+            LogHelper.LogInfo("Ayarlar formu açılıyor");
+            var settingsForm = new SettingsForm();
+            settingsForm.ShowDialog();
+            LogHelper.LogInfo("Ayarlar formu kapatıldı");
         }
 
         private void CaptureScreen()
@@ -271,14 +280,31 @@ namespace QSolver
 
                         Point resultLocation = new Point(x, y);
 
-                        // API çağrısını başlat
-                        LogHelper.LogInfo("Görsel analiz ediliyor...");
-                        var analysisTask = geminiService.AnalyzeImage(base64Image);
+                        // Turbo modu kontrolü
+                        bool turboMode = SettingsService.GetTurboMode();
 
-                        // Sonuç formunu göster ve analiz task'ını ilet
-                        ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
-                        resultForm.Show();
-                        LogHelper.LogInfo("Sonuç formu gösterildi");
+                        if (turboMode)
+                        {
+                            // Turbo mod: Doğrudan soru çözme
+                            LogHelper.LogInfo("Turbo mod aktif - Soru doğrudan çözülüyor...");
+                            var directSolveTask = geminiService.SolveQuestionDirectly(base64Image);
+
+                            // Sonuç formunu göster ve task'ı ilet
+                            ResultForm resultForm = new ResultForm(resultLocation, directSolveTask);
+                            resultForm.Show();
+                            LogHelper.LogInfo("Sonuç formu (turbo mod) gösterildi");
+                        }
+                        else
+                        {
+                            // Normal mod: Önce görsel analiz, sonra soru çözme
+                            LogHelper.LogInfo("Görsel analiz ediliyor...");
+                            var analysisTask = geminiService.AnalyzeImage(base64Image);
+
+                            // Sonuç formunu göster ve analiz task'ını ilet
+                            ResultForm resultForm = new ResultForm(resultLocation, analysisTask);
+                            resultForm.Show();
+                            LogHelper.LogInfo("Sonuç formu gösterildi");
+                        }
                     }
                     catch (Exception ex)
                     {
