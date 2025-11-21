@@ -4,7 +4,7 @@ Türkçe | [English](README.md)
 
 QSolver, ekranınızdaki soruları yakalamak ve işlemek için tasarlanmış bir Windows uygulamasıdır. Sistem tepsisinde durarak ihtiyaç duyduğunuzda hemen kullanıma hazırdır.
 
-Sürüm: 1.2.0
+Sürüm: 1.3.0
 
 ## Özellikler
 
@@ -17,20 +17,23 @@ Sürüm: 1.2.0
 - **Geçici Depolama**: Yakalamaları otomatik olarak geçici bir klasörde saklar
 - **Özel Tema**: Yuvarlak köşeli ve yumuşak geçişli modern koyu tema
 - **API Anahtarı Yönetimi**: Farklı servisler için API anahtarlarınızı kolayca yönetin
+- **API Anahtarı Doğrulama**: API anahtarlarınızın çalışıp çalışmadığını test edin, renk kodlu durum göstergeleri ile kontrol edin (yeşil: geçerli, kırmızı: geçersiz, sarı: rate limit)
 
 ## Gereksinimler
 
 - Windows İşletim Sistemi
-- .NET 8.0 veya üzeri
+- .NET 8.0 Desktop Runtime veya üzeri ([Buradan indirin](https://dotnet.microsoft.com/download/dotnet/8.0/runtime))
 - Visual Studio 2022 (geliştirme için)
 - Yapay zeka servisleri için internet bağlantısı
 
 ## Kurulum
 
-1. Releases sayfasından en son sürümü indirin
-2. Dosyaları istediğiniz konuma çıkartın
-3. `QSolver.exe`'yi çalıştırın
-4. Sistem tepsisi menüsünden API anahtarlarınızı yapılandırın
+1. [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime)'ın yüklü olduğundan emin olun
+2. Releases sayfasından en son sürümü indirin
+3. Dosyaları istediğiniz konuma çıkartın
+4. `QSolver.exe`'yi çalıştırın
+5. Sistem tepsisi menüsünden API anahtarlarınızı yapılandırın
+6. API anahtarlarını ekledikten sonra "Kontrol Et" butonu ile geçerliliklerini test edin
 
 ## Kullanım
 
@@ -56,6 +59,14 @@ Geliştirme modunda çalıştırmak için:
 ```bash
 dotnet run
 ```
+
+Release derlemesi oluşturmak için:
+
+```bash
+dotnet publish -c Release --self-contained false -p:PublishSingleFile=true
+```
+
+Çıktı dosyası `bin/Release/net8.0-windows/win-x64/publish/` klasöründe olacaktır.
 
 ## Katkıda Bulunma
 
