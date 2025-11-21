@@ -24,12 +24,14 @@ namespace QSolver.Forms
 
             // Form properties
             this.Text = "QSolver - Ayarlar";
-            this.Size = new Size(400, 250);
+            this.Size = new Size(420, 280);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.BackColor = Color.FromArgb(45, 45, 48);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new SizeF(96F, 96F);
 
             // Model label
             modelLabel = new Label
@@ -64,8 +66,9 @@ namespace QSolver.Forms
             turboModeCheckBox = new CheckBox
             {
                 Text = "",
-                Location = new Point(20, 70),
-                Size = new Size(350, 23),
+                Location = new Point(20, 80),
+                Size = new Size(370, 30),
+                MinimumSize = new Size(370, 30),
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Font = new Font("Segoe UI", 9F),
                 BackColor = Color.Transparent,
@@ -82,8 +85,8 @@ namespace QSolver.Forms
                 // Tüm alanı temizle - arka plan rengini uygula
                 e.Graphics.Clear(Color.FromArgb(45, 45, 48));
 
-                // Checkbox kutusunu çiz
-                Rectangle checkBoxRect = new Rectangle(1, 5, 16, 16);
+                // Checkbox kutusunu çiz - biraz daha büyük
+                Rectangle checkBoxRect = new Rectangle(2, 6, 18, 18);
 
                 // Arka plan - işaretliyse yeşil, değilse gri
                 Color bgColor = turboModeCheckBox.Checked ? Color.FromArgb(46, 213, 115) : Color.FromArgb(62, 62, 66);
@@ -108,17 +111,19 @@ namespace QSolver.Forms
                         checkPen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
 
                         // Tik işareti çiz - koordinatları ayarlandı
-                        e.Graphics.DrawLine(checkPen, 4, 10, 8, 14);
-                        e.Graphics.DrawLine(checkPen, 8, 14, 14, 8);
+                        e.Graphics.DrawLine(checkPen, 5, 12, 9, 16);
+                        e.Graphics.DrawLine(checkPen, 9, 16, 16, 9);
                     }
                 }
 
-                // Metni çiz
-                using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(241, 241, 241)))
-                {
-                    e.Graphics.DrawString("Turbo Mod (Soru düzenleme adımını atla, direk çöz)",
-                        turboModeCheckBox.Font, textBrush, 25, 5);
-                }
+                // Metni çiz - TextRenderer kullanarak daha iyi sarmalama
+                Rectangle textRect = new Rectangle(28, 3, turboModeCheckBox.Width - 30, turboModeCheckBox.Height - 6);
+                TextRenderer.DrawText(e.Graphics,
+                    "Turbo Mod (Soru düzenleme adımını atla, direk çöz)",
+                    turboModeCheckBox.Font,
+                    textRect,
+                    Color.FromArgb(241, 241, 241),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
             };
 
             // Checkbox'a tıklanınca yeniden çiz
@@ -131,7 +136,7 @@ namespace QSolver.Forms
             saveButton = new Button
             {
                 Text = "Kaydet",
-                Location = new Point(200, 120),
+                Location = new Point(200, 150),
                 Size = new Size(75, 30),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
@@ -146,7 +151,7 @@ namespace QSolver.Forms
             cancelButton = new Button
             {
                 Text = "İptal",
-                Location = new Point(285, 120),
+                Location = new Point(285, 150),
                 Size = new Size(75, 30),
                 BackColor = Color.FromArgb(62, 62, 66),
                 ForeColor = Color.FromArgb(241, 241, 241),
