@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace QSolver
@@ -10,13 +12,15 @@ namespace QSolver
         private readonly Button addButton;
         private readonly Button editButton;
         private readonly Button removeButton;
+        private readonly Button validateButton;
         private readonly Button closeButton;
         private readonly Panel buttonPanel;
+        private readonly Dictionary<string, ApiKeyValidationResult> validationResults = new Dictionary<string, ApiKeyValidationResult>();
 
         public ApiKeyForm()
         {
             this.Text = "API Anahtarları";
-            this.Size = new Size(500, 350);
+            this.Size = new Size(550, 350);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -65,6 +69,17 @@ namespace QSolver
             };
             removeButton.Click += RemoveButton_Click;
 
+            // Kontrol Et butonu
+            validateButton = new Button
+            {
+                Text = "Kontrol Et",
+                Width = 100,
+                Height = 30,
+                Location = new Point(280, 10),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            };
+            validateButton.Click += ValidateButton_Click;
+
             // Kapat butonu
             closeButton = new Button
             {
@@ -80,6 +95,7 @@ namespace QSolver
             buttonPanel.Controls.Add(addButton);
             buttonPanel.Controls.Add(editButton);
             buttonPanel.Controls.Add(removeButton);
+            buttonPanel.Controls.Add(validateButton);
             buttonPanel.Controls.Add(closeButton);
 
             // ListView oluştur
@@ -90,15 +106,20 @@ namespace QSolver
                 GridLines = true,
                 Dock = DockStyle.Fill,
                 BorderStyle = BorderStyle.FixedSingle,
-                HideSelection = false // Seçim kaybolduktan sonra bile seçili göster
+                HideSelection = false, // Seçim kaybolduktan sonra bile seçili göster
+                OwnerDraw = true // Özel çizim için
             };
 
             // ListView olaylarını ekle
             apiKeyListView.SelectedIndexChanged += ApiKeyListView_SelectedIndexChanged;
             apiKeyListView.Click += ApiKeyListView_Click;
+            apiKeyListView.DrawItem += ApiKeyListView_DrawItem;
+            apiKeyListView.DrawSubItem += ApiKeyListView_DrawSubItem;
+            apiKeyListView.DrawColumnHeader += ApiKeyListView_DrawColumnHeader;
 
-            apiKeyListView.Columns.Add("API Anahtarı", 200);
-            apiKeyListView.Columns.Add("Açıklama", 200);
+            apiKeyListView.Columns.Add("API Anahtarı", 180);
+            apiKeyListView.Columns.Add("Açıklama", 150);
+            apiKeyListView.Columns.Add("Durum", 150);
 
             // Kontrolleri forma ekle - Önce panel, sonra ListView ekleyin
             this.Controls.Add(buttonPanel);
@@ -118,6 +139,127 @@ namespace QSolver
             };
         }
 
+        private void ApiKeyListView_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            e.DrawDefault = true;
+        }
+
+        private void ApiKeyListView_DrawItem(object? sender, DrawListViewItemEventArgs e)
+        {
+            e.DrawDefault = false;
+        }
+
+        private void ApiKeyListView_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e)
+        {
+            if (e.Item == null) return;
+
+            var apiKey = e.Item.Tag as ApiKey;
+            if (apiKey == null) return;
+
+            // Arka plan rengini belirle
+            Color backgroundColor = e.Item.Selected ? SystemColors.Highlight : SystemColors.Window;
+
+            // Validation sonucuna göre renk ayarla (sadece geçersiz veya rate limit durumunda)
+            if (validationResults.ContainsKey(apiKey.Key))
+            {
+                var result = validationResults[apiKey.Key];
+                if (!e.Item.Selected)
+                {
+                    switch (result.Status)
+                    {
+                        case ApiKeyStatus.Valid:
+                            backgroundColor = Color.FromArgb(220, 255, 220); // Açık yeşil
+                            break;
+                        case ApiKeyStatus.Invalid:
+                            backgroundColor = Color.FromArgb(255, 220, 220); // Açık kırmızı
+                            break;
+                        case ApiKeyStatus.RateLimit:
+                            backgroundColor = Color.FromArgb(255, 255, 200); // Açık sarı
+                            break;
+                    }
+                }
+            }
+
+            // Arka planı çiz
+            using (SolidBrush brush = new SolidBrush(backgroundColor))
+            {
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            }
+
+            // Metin rengini belirle
+            Color textColor = e.Item.Selected ? SystemColors.HighlightText : SystemColors.WindowText;
+
+            // Metni çiz
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.SubItem?.Text ?? "",
+                e.Item.Font,
+                e.Bounds,
+                textColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
+            );
+
+            // Seçili öğe için kenarlık çiz
+            if (e.Item.Selected)
+            {
+                e.Graphics.DrawRectangle(SystemPens.Highlight, e.Bounds);
+            }
+        }
+
+        private async void ValidateButton_Click(object? sender, EventArgs e)
+        {
+            validateButton.Enabled = false;
+            validateButton.Text = "Kontrol ediliyor...";
+            validationResults.Clear();
+
+            try
+            {
+                var results = await ApiKeyValidator.ValidateAllApiKeysAsync();
+                var apiKeys = ApiKeyManager.GetApiKeys();
+
+                for (int i = 0; i < results.Length && i < apiKeys.Count; i++)
+                {
+                    validationResults[apiKeys[i].Key] = results[i];
+
+                    // ListView'deki ilgili öğeyi güncelle
+                    if (i < apiKeyListView.Items.Count)
+                    {
+                        var item = apiKeyListView.Items[i];
+                        if (item.SubItems.Count > 2)
+                        {
+                            item.SubItems[2].Text = results[i].Message;
+                        }
+                        else
+                        {
+                            item.SubItems.Add(results[i].Message);
+                        }
+                    }
+                }
+
+                // ListView'i yeniden çiz
+                apiKeyListView.Invalidate();
+
+                MessageBox.Show(
+                    "API anahtarları kontrol edildi.",
+                    "Bilgi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"API anahtarları kontrol edilirken hata oluştu: {ex.Message}",
+                    "Hata",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            finally
+            {
+                validateButton.Enabled = true;
+                validateButton.Text = "Kontrol Et";
+            }
+        }
+
         private void ApiKeyListView_SelectedIndexChanged(object? sender, EventArgs e)
         {
             UpdateButtonStates();
@@ -131,11 +273,12 @@ namespace QSolver
         private void LoadApiKeys()
         {
             apiKeyListView.Items.Clear();
+            validationResults.Clear();
             var apiKeys = ApiKeyManager.GetApiKeys();
 
             foreach (var apiKey in apiKeys)
             {
-                var item = new ListViewItem(new[] { MaskApiKey(apiKey.Key), apiKey.Description });
+                var item = new ListViewItem(new[] { MaskApiKey(apiKey.Key), apiKey.Description, "" });
                 item.Tag = apiKey;
                 apiKeyListView.Items.Add(item);
             }
@@ -239,9 +382,10 @@ namespace QSolver
         {
             base.OnLoad(e);
             // Form yüklendiğinde sütun genişliklerini ayarla
-            int columnWidth = (apiKeyListView.ClientSize.Width - 4) / 2;
-            apiKeyListView.Columns[0].Width = columnWidth;
-            apiKeyListView.Columns[1].Width = columnWidth;
+            int totalWidth = apiKeyListView.ClientSize.Width - 4;
+            apiKeyListView.Columns[0].Width = (int)(totalWidth * 0.35);
+            apiKeyListView.Columns[1].Width = (int)(totalWidth * 0.35);
+            apiKeyListView.Columns[2].Width = (int)(totalWidth * 0.30);
         }
     }
 
