@@ -24,14 +24,14 @@ namespace QSolver.Forms
 
             // Form properties
             this.Text = "QSolver - Ayarlar";
-            this.Size = new Size(420, 280);
+            this.Size = new Size(420, 230);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.BackColor = Color.FromArgb(45, 45, 48);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.AutoScaleDimensions = new SizeF(96F, 96F);
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
 
             // Model label
             modelLabel = new Label
@@ -136,7 +136,7 @@ namespace QSolver.Forms
             saveButton = new Button
             {
                 Text = "Kaydet",
-                Location = new Point(200, 150),
+                Location = new Point(220, 140),
                 Size = new Size(75, 30),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
@@ -151,7 +151,7 @@ namespace QSolver.Forms
             cancelButton = new Button
             {
                 Text = "İptal",
-                Location = new Point(285, 150),
+                Location = new Point(305, 140),
                 Size = new Size(75, 30),
                 BackColor = Color.FromArgb(62, 62, 66),
                 ForeColor = Color.FromArgb(241, 241, 241),
