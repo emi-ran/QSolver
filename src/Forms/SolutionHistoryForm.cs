@@ -291,12 +291,15 @@ namespace QSolver.Forms
             questionTitleLabel.Text = selectedItem.QuestionTitle;
             answerLabel.Text = $"Cevap: {selectedItem.Answer}";
 
-            // Escape edilmiş newline karakterlerini gerçek newline'a çevir
+            // Newline karakterlerini Windows TextBox için düzenle
             var questionText = selectedItem.QuestionText;
+            // Önce escape edilmiş \\n karakterlerini gerçek newline yap
             if (questionText.Contains("\\n"))
             {
-                questionText = questionText.Replace("\\n", Environment.NewLine);
+                questionText = questionText.Replace("\\n", "\n");
             }
+            // Sonra tüm \n'leri \r\n'e çevir (Windows TextBox için gerekli)
+            questionText = questionText.Replace("\r\n", "\n").Replace("\n", "\r\n");
             questionTextBox.Text = questionText;
 
             // Mevcut resmi temizle
