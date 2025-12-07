@@ -111,9 +111,10 @@ namespace QSolver.Forms
             };
 
             // ListView columns
-            historyListView.Columns.Add("Başlık", 200);
-            historyListView.Columns.Add("Cevap", 80);
-            historyListView.Columns.Add("Tarih", 120);
+            historyListView.Columns.Add("Ders", 80);
+            historyListView.Columns.Add("Başlık", 170);
+            historyListView.Columns.Add("Cevap", 60);
+            historyListView.Columns.Add("Tarih", 100);
             historyListView.Columns.Add("Model", 80);
 
             historyListView.SelectedIndexChanged += HistoryListView_SelectedIndexChanged;
@@ -241,7 +242,8 @@ namespace QSolver.Forms
 
             foreach (var item in history)
             {
-                var listItem = new ListViewItem(item.QuestionTitle);
+                var listItem = new ListViewItem(item.Lecture);
+                listItem.SubItems.Add(item.QuestionTitle);
                 listItem.SubItems.Add(item.Answer);
                 listItem.SubItems.Add(item.Timestamp.ToString("dd.MM.yyyy HH:mm"));
                 listItem.SubItems.Add(item.UsedModel);
@@ -260,7 +262,8 @@ namespace QSolver.Forms
 
             foreach (var item in searchResults)
             {
-                var listItem = new ListViewItem(item.QuestionTitle);
+                var listItem = new ListViewItem(item.Lecture);
+                listItem.SubItems.Add(item.QuestionTitle);
                 listItem.SubItems.Add(item.Answer);
                 listItem.SubItems.Add(item.Timestamp.ToString("dd.MM.yyyy HH:mm"));
                 listItem.SubItems.Add(item.UsedModel);
@@ -290,7 +293,11 @@ namespace QSolver.Forms
         {
             if (selectedItem == null) return;
 
-            questionTitleLabel.Text = selectedItem.QuestionTitle;
+            // Başlıkta ders bilgisi varsa göster
+            string titleWithLecture = !string.IsNullOrEmpty(selectedItem.Lecture)
+                ? $"[{selectedItem.Lecture}] {selectedItem.QuestionTitle}"
+                : selectedItem.QuestionTitle;
+            questionTitleLabel.Text = titleWithLecture;
             answerLabel.Text = $"Cevap: {selectedItem.Answer}";
 
             // Newline karakterlerini Windows TextBox için düzenle

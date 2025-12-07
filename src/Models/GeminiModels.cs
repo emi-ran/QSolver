@@ -15,6 +15,7 @@ namespace QSolver.Models
     public class SolutionResponse
     {
         public string title { get; set; } = "";
+        public string lecture { get; set; } = "";
         public string explanation { get; set; } = "";
         public bool solved { get; set; } = false;
         public string answers { get; set; } = "";
@@ -26,6 +27,7 @@ namespace QSolver.Models
     public class TurboResponse
     {
         public string title { get; set; } = "";
+        public string lecture { get; set; } = "";
         public bool solved { get; set; } = false;
         public string answers { get; set; } = "";
     }

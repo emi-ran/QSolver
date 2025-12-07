@@ -92,39 +92,49 @@ namespace QSolver
         /// <summary>
         /// Soru çözümü yanıtı için JSON schema döndürür
         /// </summary>
-        private static object GetSolutionSchema()
+        private static object GetSolutionSchema(List<string> availableLectures)
         {
+            string lectureDescription = availableLectures.Count > 0
+                ? $"Sorunun dersi. Mevcut dersler: [{string.Join(", ", availableLectures)}]. Bu derslerden biri eşleşiyorsa onu yaz, yoksa yeni ders adı yaz (örn: Türkçe, Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, İngilizce, Din Kültürü)"
+                : "Sorunun dersi (örn: Türkçe, Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, İngilizce, Din Kültürü)";
+
             return new
             {
                 type = "object",
                 properties = new
                 {
+                    lecture = new { type = "string", description = lectureDescription },
                     title = new { type = "string", description = "Sorunun kısa başlığı (max 50 karakter), örn: 'Matematik: Türev', 'Fizik: Hareket'" },
                     explanation = new { type = "string", description = "Çözümün markdown formatında adım adım açıklaması" },
                     solved = new { type = "boolean", description = "Sorunun başarıyla çözülüp çözülemediği" },
                     answers = new { type = "string", description = "Cevap(lar) - tek soru için 'A', çoklu sorular için soru numarasına göre sıralı 'A,B,C' formatında" }
                 },
-                required = new[] { "title", "explanation", "solved", "answers" },
-                propertyOrdering = new[] { "title", "explanation", "solved", "answers" }
+                required = new[] { "lecture", "title", "explanation", "solved", "answers" },
+                propertyOrdering = new[] { "lecture", "title", "explanation", "solved", "answers" }
             };
         }
 
         /// <summary>
         /// Turbo Mode için minimal schema - sadece cevap ve başlık
         /// </summary>
-        private static object GetTurboSchema()
+        private static object GetTurboSchema(List<string> availableLectures)
         {
+            string lectureDescription = availableLectures.Count > 0
+                ? $"Sorunun dersi. Mevcut: [{string.Join(", ", availableLectures)}]. Eşleşiyorsa seç, yoksa yeni yaz."
+                : "Sorunun dersi (Türkçe, Matematik, Fizik vb.)";
+
             return new
             {
                 type = "object",
                 properties = new
                 {
+                    lecture = new { type = "string", description = lectureDescription },
                     title = new { type = "string", description = "Sorunun kısa başlığı (max 30 karakter)" },
                     solved = new { type = "boolean", description = "Çözüldü mü?" },
                     answers = new { type = "string", description = "Cevap(lar) - 'A' veya 'A,B,C'" }
                 },
-                required = new[] { "title", "solved", "answers" },
-                propertyOrdering = new[] { "title", "solved", "answers" }
+                required = new[] { "lecture", "title", "solved", "answers" },
+                propertyOrdering = new[] { "lecture", "title", "solved", "answers" }
             };
         }
 
@@ -260,13 +270,16 @@ namespace QSolver
             }
         }
 
-        public async Task<(string fullResponse, string answer)> SolveQuestion(string questionText)
+        public async Task<(string fullResponse, string answer, string lecture)> SolveQuestion(string questionText)
         {
             try
             {
                 LogHelper.LogInfo("Soru çözülüyor...");
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
+
+                // Mevcut dersleri al
+                var availableLectures = SolutionHistoryService.GetAvailableLectures();
 
                 // Tüm API anahtarlarını al
                 var allApiKeys = ApiKeyManager.GetAllApiKeys();
@@ -284,6 +297,11 @@ namespace QSolver
                     {
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
+
+                        // Prompt'a mevcut dersleri ekle
+                        string lectureHint = availableLectures.Count > 0
+                            ? $"\n\nMevcut dersler: {string.Join(", ", availableLectures)}. Bu derslerden biri eşleşiyorsa onu kullan, yoksa yeni ders adı belirle."
+                            : "";
 
                         // API isteği için JSON hazırla (Structured Output ile)
                         var request = new GeminiRequest
@@ -304,6 +322,7 @@ namespace QSolver
                                                 - Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
                                                 - explanation alanında çözümü markdown formatında adım adım açıkla
                                                 - title alanına kısa bir başlık yaz (max 50 karakter)
+                                                - lecture alanına sorunun dersini yaz (Türkçe, Matematik, Fizik vb.)" + lectureHint + @"
 
                                                 Soru:
                                                 " + questionText
@@ -314,7 +333,7 @@ namespace QSolver
                             generationConfig = new GenerationConfig
                             {
                                 responseMimeType = "application/json",
-                                responseSchema = GetSolutionSchema()
+                                responseSchema = GetSolutionSchema(availableLectures)
                             }
                         };
 
@@ -338,7 +357,7 @@ namespace QSolver
                                 continue;
                             }
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata");
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "");
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -362,14 +381,16 @@ namespace QSolver
                             {
                                 string fullResponse = solutionResult.explanation;
                                 string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
+                                string lecture = solutionResult.lecture ?? "";
                                 LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
                                 LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                                return (fullResponse, answer);
+                                LogHelper.LogInfo($"Ders: {lecture}");
+                                return (fullResponse, answer, lecture);
                             }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata");
+                        return ("Yanıt işlenemedi.", "Hata", "");
                     }
                     catch (Exception ex)
                     {
@@ -395,13 +416,16 @@ namespace QSolver
             }
         }
 
-        public async Task<(string fullResponse, string answer, string title)> SolveQuestionDirectly(string base64Image)
+        public async Task<(string fullResponse, string answer, string title, string lecture)> SolveQuestionDirectly(string base64Image)
         {
             try
             {
                 LogHelper.LogInfo("Soru görsel üzerinden doğrudan çözülüyor...");
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
+
+                // Mevcut dersleri al
+                var availableLectures = SolutionHistoryService.GetAvailableLectures();
 
                 // Tüm API anahtarlarını al
                 var allApiKeys = ApiKeyManager.GetAllApiKeys();
@@ -420,6 +444,11 @@ namespace QSolver
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
+                        // Prompt'a mevcut dersleri ekle
+                        string lectureHint = availableLectures.Count > 0
+                            ? $"\n- lecture: ders adı. Mevcut: [{string.Join(", ", availableLectures)}]. Eşleşiyorsa seç, yoksa yeni yaz."
+                            : "\n- lecture: ders adı (Türkçe, Matematik, Fizik vb.)";
+
                         // API isteği için JSON hazırla (Turbo Mode - Minimal Schema)
                         var request = new GeminiRequest
                         {
@@ -434,7 +463,7 @@ namespace QSolver
                                             text = @"Bu görseldeki soruyu çöz. Sadece doğru cevabı ver.
 - Tek soru: 'A' gibi şık harfi
 - Çoklu soru: 'A,B,C' gibi virgülle ayır (soru numarasına göre sırala)
-- title: kısa başlık (max 30 karakter)"
+- title: kısa başlık (max 30 karakter)" + lectureHint
                                         },
                                         new Part
                                         {
@@ -450,7 +479,7 @@ namespace QSolver
                             generationConfig = new GenerationConfig
                             {
                                 responseMimeType = "application/json",
-                                responseSchema = GetTurboSchema()
+                                responseSchema = GetTurboSchema(availableLectures)
                             }
                         };
 
@@ -474,7 +503,7 @@ namespace QSolver
                                 continue;
                             }
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası");
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası", "");
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -502,13 +531,14 @@ namespace QSolver
                                 string title = !string.IsNullOrEmpty(turboResult.title)
                                     ? (turboResult.title.Length > 50 ? turboResult.title.Substring(0, 47) + "..." : turboResult.title)
                                     : $"Turbo - {DateTime.Now:HH:mm}";
-                                LogHelper.LogInfo($"Turbo çözüm: cevap={answer}, başlık={title}");
-                                return (fullResponse, answer, title);
+                                string lecture = turboResult.lecture ?? "";
+                                LogHelper.LogInfo($"Turbo çözüm: cevap={answer}, başlık={title}, ders={lecture}");
+                                return (fullResponse, answer, title, lecture);
                             }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru");
+                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru", "");
                     }
                     catch (Exception ex)
                     {

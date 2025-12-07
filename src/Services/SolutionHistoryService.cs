@@ -12,6 +12,7 @@ namespace QSolver
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        public string Lecture { get; set; } = string.Empty;
         public string QuestionTitle { get; set; } = string.Empty;
         public string QuestionText { get; set; } = string.Empty;
         public string Answer { get; set; } = string.Empty;
@@ -57,15 +58,19 @@ namespace QSolver
         }
 
         public static async Task AddSolutionToHistory(string questionText, string answer, string solutionSteps,
-            byte[] screenshotData, bool wasTurboMode)
+            byte[] screenshotData, bool wasTurboMode, string lecture = "", string title = "")
         {
             try
             {
-                // Turbo modda questionText zaten başlık, normal modda AI ile başlık üret
-                string title = wasTurboMode ? questionText : await GenerateQuestionTitle(questionText);
+                // Title boşsa üret
+                if (string.IsNullOrEmpty(title))
+                {
+                    title = wasTurboMode ? questionText : await GenerateQuestionTitle(questionText);
+                }
 
                 var historyItem = new SolutionHistoryItem
                 {
+                    Lecture = lecture,
                     QuestionTitle = title,
                     QuestionText = wasTurboMode ? "Turbo Mode - Doğrudan çözüm" : questionText,
                     Answer = answer,
@@ -91,6 +96,19 @@ namespace QSolver
                 MessageBox.Show($"Çözüm geçmişe eklenirken hata: {ex.Message}", "Hata",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Geçmişteki tüm benzersiz dersleri döndürür
+        /// </summary>
+        public static List<string> GetAvailableLectures()
+        {
+            return historyItems
+                .Where(h => !string.IsNullOrEmpty(h.Lecture))
+                .Select(h => h.Lecture)
+                .Distinct()
+                .OrderBy(l => l)
+                .ToList();
         }
 
         private static async Task<string> GenerateQuestionTitle(string questionText)

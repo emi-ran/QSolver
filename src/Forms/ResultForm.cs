@@ -19,6 +19,7 @@ namespace QSolver
         private string questionText = string.Empty;
         private string solutionText = string.Empty;
         private string answerLetter = string.Empty;
+        private string lectureText = string.Empty;
         private byte[]? screenshotData;
         private bool isTurboMode;
 
@@ -47,7 +48,7 @@ namespace QSolver
         }
 
         // Turbo mode için constructor
-        public ResultForm(Point location, Task<(string fullResponse, string answer, string title)> directSolveTask, byte[]? screenshotData = null, bool isTurboMode = true)
+        public ResultForm(Point location, Task<(string fullResponse, string answer, string title, string lecture)> directSolveTask, byte[]? screenshotData = null, bool isTurboMode = true)
         {
             this.screenshotData = screenshotData;
             this.isTurboMode = isTurboMode;
@@ -436,7 +437,7 @@ namespace QSolver
             }
         }
 
-        private async void WaitForDirectSolve(Task<(string fullResponse, string answer, string title)> directSolveTask)
+        private async void WaitForDirectSolve(Task<(string fullResponse, string answer, string title, string lecture)> directSolveTask)
         {
             try
             {
@@ -458,11 +459,12 @@ namespace QSolver
                     });
                 }
 
-                var (fullResponse, answer, title) = await directSolveTask;
+                var (fullResponse, answer, title, lecture) = await directSolveTask;
 
                 solutionText = fullResponse;
                 answerLetter = answer;
                 questionText = title; // Başlığı questionText olarak kullan
+                lectureText = lecture; // Dersi kaydet
 
                 // JSON formatında cevap var mı kontrol et
                 if (answer == "?" || answer == "Hata")
@@ -540,7 +542,7 @@ namespace QSolver
                 }
 
                 // Soruyu çöz
-                var (fullResponse, answer) = await Program.GetGeminiService().SolveQuestion(questionText);
+                var (fullResponse, answer, lecture) = await Program.GetGeminiService().SolveQuestion(questionText);
 
                 // JSON formatında cevap var mı kontrol et
                 if (answer == "?" || answer == "Hata")
@@ -555,7 +557,7 @@ namespace QSolver
                     }
 
                     // Tekrar dene
-                    (fullResponse, answer) = await Program.GetGeminiService().SolveQuestion(questionText);
+                    (fullResponse, answer, lecture) = await Program.GetGeminiService().SolveQuestion(questionText);
 
                     // Hala JSON formatında cevap yoksa
                     if (answer == "?" || answer == "Hata")
@@ -583,6 +585,7 @@ namespace QSolver
 
                 solutionText = fullResponse;
                 answerLetter = answer;
+                lectureText = lecture;
 
                 // UI'ı güncelle
                 if (this.IsHandleCreated)
@@ -665,13 +668,14 @@ namespace QSolver
             {
                 if (!string.IsNullOrEmpty(answerLetter) && answerLetter != "?" && answerLetter != "Hata" && screenshotData != null)
                 {
-                    string questionForHistory = isTurboMode ? questionText : questionText; // Her iki modda da questionText kullan (title içeriyor)
                     await SolutionHistoryService.AddSolutionToHistory(
-                        questionForHistory,
+                        questionText,
                         answerLetter,
                         solutionText,
                         screenshotData,
-                        isTurboMode
+                        isTurboMode,
+                        lectureText, // Ders bilgisi
+                        questionText  // Başlık olarak questionText kullan
                     );
                 }
             }
