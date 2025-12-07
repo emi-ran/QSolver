@@ -62,12 +62,12 @@ namespace QSolver
         {
             return new string[]
             {
-                "gemini-2.5-flash",
-                "gemini-2.5-flash-lite",
-                "gemini-2.5-pro",
-                "gemini-2.0-flash",
-                "gemini-2.0-pro",
-                "gemini-2.0-flash-lite"
+                "gemini-3-pro-preview",   // En akıllı model - Multimodal ve agentic
+                "gemini-2.5-flash",        // Hızlı ve akıllı - Fiyat/performans dengesi
+                "gemini-2.5-flash-lite",   // Ultra hızlı - Maliyet odaklı
+                "gemini-2.5-pro",          // Gelişmiş düşünme - Kompleks problemler
+                "gemini-2.0-flash",        // 2. nesil workhorse
+                "gemini-2.0-flash-lite"    // 2. nesil hızlı model
             };
         }
 
