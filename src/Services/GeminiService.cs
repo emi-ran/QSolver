@@ -172,7 +172,17 @@ namespace QSolver
                                 {
                                     parts = new[]
                                     {
-                                        new Part { text = "Bu görseldeki metni oku. Her satırı ve şıkkı ayrı satırda yaz (newline karakteri ile ayır). Görseldeki orijinal satır düzenini koru. Ek açıklama ekleme." },
+                                        new Part { text = @"Bu görseli analiz et.
+
+Eğer görselde bir SORU ve ŞIKLAR (A, B, C, D, E) varsa:
+- Sorunun metnini oku
+- Her satırı ve şıkkı ayrı satırda yaz (newline ile ayır)
+- Orijinal düzeni koru
+
+Eğer görselde soru YOKSA veya şıklar YOKSA:
+- Sadece şunu yaz: {""question_not_found"": true}
+
+Ek açıklama ekleme, sadece metni veya JSON'u döndür." },
                                         new Part
                                         {
                                             inline_data = new InlineData
@@ -314,18 +324,24 @@ namespace QSolver
                                     {
                                         new Part
                                         {
-                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz ve JSON formatında yanıt ver.
+                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki metni analiz et.
 
-                                                ÖNEMLİ KURALLAR:
-                                                - Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
-                                                - Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
-                                                - Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
-                                                - explanation alanında çözümü markdown formatında adım adım açıkla
-                                                - title alanına kısa bir başlık yaz (max 50 karakter)
-                                                - lecture alanına sorunun dersini yaz (Türkçe, Matematik, Fizik vb.)" + lectureHint + @"
+ÖNEMLİ: Eğer metin bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:
+- solved: false olmalı
+- answers: boş bırak
+- title: 'Soru bulunamadı' yaz
+- explanation: 'Bu metin bir soru içermiyor.' yaz
 
-                                                Soru:
-                                                " + questionText
+Eğer metin bir soru ise ve şıklar varsa:
+- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
+- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
+- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
+- explanation alanında çözümü markdown formatında adım adım açıkla
+- title alanına kısa bir başlık yaz (max 50 karakter)
+- lecture alanına sorunun dersini yaz (Türkçe, Matematik, Fizik vb.)" + lectureHint + @"
+
+Metin:
+" + questionText
                                         }
                                     }
                                 }
@@ -460,9 +476,16 @@ namespace QSolver
                                     {
                                         new Part
                                         {
-                                            text = @"Bu görseldeki soruyu çöz. Sadece doğru cevabı ver.
-- Tek soru: 'A' gibi şık harfi
-- Çoklu soru: 'A,B,C' gibi virgülle ayır (soru numarasına göre sırala)
+                                            text = @"Bu görseli analiz et.
+
+ÖNEMLİ: Eğer görsel bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:
+- solved: false olmalı
+- answers: boş bırak veya 'Soru değil' yaz
+- title: 'Soru bulunamadı' yaz
+
+Eğer görsel bir soru ise ve şıklar varsa:
+- solved: true
+- answers: Tek soru için 'A', çoklu sorular için 'A,B,C' formatında
 - title: kısa başlık (max 30 karakter)" + lectureHint
                                         },
                                         new Part
@@ -564,69 +587,6 @@ namespace QSolver
             }
         }
 
-        private string ExtractAnswer(string response)
-        {
-            try
-            {
-                // JSON formatındaki cevabı bul
-                int jsonStart = response.LastIndexOf('{');
-                int jsonEnd = response.LastIndexOf('}');
-
-                if (jsonStart >= 0 && jsonEnd > jsonStart)
-                {
-                    string jsonPart = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-
-                    // JSON'ı parse et
-                    using JsonDocument document = JsonDocument.Parse(jsonPart);
-                    var root = document.RootElement;
-
-                    if (root.TryGetProperty("solved", out var solvedElement) &&
-                        solvedElement.GetString() == "false")
-                    {
-                        return "Soru Çözülemedi";
-                    }
-
-                    // "answers" anahtarını kontrol et
-                    if (root.TryGetProperty("answers", out var answersElement))
-                    {
-                        string? answer = answersElement.GetString();
-                        return answer != null ? answer.ToUpper() : "?";
-                    }
-
-                    // Eski "answer" anahtarı kontrolü (geriye dönük uyumluluk için)
-                    if (root.TryGetProperty("answer", out var answerElement))
-                    {
-                        string? answer = answerElement.GetString();
-                        return answer != null ? answer.ToUpper() : "?";
-                    }
-                }
-
-                // Cevap bulunamadı, metni analiz ederek bulmaya çalış
-                if (response.Contains("Doğru cevaplar sırasıyla:") || response.Contains("Doğru cevap sırasıyla:"))
-                {
-                    // Metinden cevapları çıkarmaya çalış
-                    var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in lines)
-                    {
-                        if (line.Contains("Doğru cevaplar sırasıyla:") || line.Contains("Doğru cevap sırasıyla:"))
-                        {
-                            var answersText = line.Split(':')[1].Trim();
-                            // Cevapları ayıkla, büyük harfe çevir ve virgülle birleştir
-                            var answers = answersText.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                                                    .Select(a => a.ToUpper());
-                            return string.Join(",", answers);
-                        }
-                    }
-                }
-
-                return "?";
-            }
-            catch
-            {
-                return "?";
-            }
-        }
-
         public async Task<string> GenerateQuestionTitle(string questionText)
         {
             try
@@ -683,54 +643,6 @@ namespace QSolver
             {
                 LogHelper.LogError($"Title generation error: {ex.Message}");
                 // Hata durumunda varsayılan başlık döndür
-                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
-            }
-        }
-
-        private string ExtractTitle(string response)
-        {
-            try
-            {
-                // JSON formatından title çıkar
-                if (response.Contains("\"title\""))
-                {
-                    // JSON içerisinden title çıkarmaya çalış
-                    var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in lines)
-                    {
-                        if (line.Contains("\"title\":"))
-                        {
-                            // { "title":"başlık", "solved":"true", "answers":"B" } formatını parse et
-                            try
-                            {
-                                var jsonStart = line.IndexOf('{');
-                                var jsonEnd = line.LastIndexOf('}');
-                                if (jsonStart >= 0 && jsonEnd > jsonStart)
-                                {
-                                    var jsonStr = line.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                                    var jsonDoc = JsonDocument.Parse(jsonStr);
-                                    if (jsonDoc.RootElement.TryGetProperty("title", out var titleElement))
-                                    {
-                                        var title = titleElement.GetString() ?? "";
-                                        if (!string.IsNullOrWhiteSpace(title))
-                                        {
-                                            return title.Length > 50 ? title.Substring(0, 47) + "..." : title;
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // JSON parse hatası, devam et
-                            }
-                        }
-                    }
-                }
-
-                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
-            }
-            catch
-            {
                 return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
             }
         }

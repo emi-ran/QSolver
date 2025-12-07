@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using QSolver.Helpers;
 using QSolver.Forms;
 
@@ -17,9 +18,16 @@ namespace QSolver
         private Rectangle selectionRect;
         private bool isSelecting;
         private readonly GeminiService geminiService;
+        private HotkeyWindow? hotkeyWindow;
 
         // Statik gemini servisi referansı
         private static GeminiService? staticGeminiService;
+
+        // Hotkey sabitleri
+        private const int HOTKEY_ID = 1;
+        private const int MOD_CONTROL = 0x0002;
+        private const int MOD_SHIFT = 0x0004;
+        private const int VK_Q = 0x51;
 
         public Program()
         {
@@ -42,9 +50,12 @@ namespace QSolver
             geminiService = new GeminiService(apiKey);
             staticGeminiService = geminiService;
 
+            // Global hotkey'i kaydet
+            hotkeyWindow = new HotkeyWindow(CaptureScreen);
+
             // Tray icon servisini oluştur
             trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm, ShowHistoryForm);
-            LogHelper.LogInfo("Program başlatıldı");
+            LogHelper.LogInfo("Program başlatıldı (Kısayol: Ctrl+Shift+Q)");
         }
 
         // Statik gemini servisi erişimi için metot
@@ -330,6 +341,7 @@ namespace QSolver
         private void Exit()
         {
             LogHelper.LogInfo("Program kapatılıyor...");
+            hotkeyWindow?.Dispose();
             trayIconService?.Dispose();
             Application.Exit();
         }
@@ -346,6 +358,68 @@ namespace QSolver
             // Program nesnesini oluştur ve uygulamayı çalıştır
             Program program = new Program();
             Application.Run();
+        }
+    }
+
+    /// <summary>
+    /// Global kısayol tuşlarını yakalamak için gizli pencere
+    /// </summary>
+    public class HotkeyWindow : NativeWindow, IDisposable
+    {
+        private const int WM_HOTKEY = 0x0312;
+        private const int HOTKEY_ID = 1;
+        private const int MOD_CONTROL = 0x0002;
+        private const int MOD_SHIFT = 0x0004;
+        private const int VK_Q = 0x51;
+
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        private readonly Action _captureAction;
+        private bool _disposed = false;
+
+        public HotkeyWindow(Action captureAction)
+        {
+            _captureAction = captureAction;
+
+            // Gizli pencere oluştur
+            CreateParams cp = new CreateParams();
+            CreateHandle(cp);
+
+            // Ctrl+Shift+Q kısayolunu kaydet
+            bool success = RegisterHotKey(Handle, HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, VK_Q);
+            if (success)
+            {
+                LogHelper.LogInfo("Global kısayol tuşu kaydedildi: Ctrl+Shift+Q");
+            }
+            else
+            {
+                LogHelper.LogWarning("Global kısayol tuşu kaydedilemedi - başka bir uygulama kullanıyor olabilir");
+            }
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
+            {
+                LogHelper.LogInfo("Kısayol tuşu algılandı: Ctrl+Shift+Q");
+                _captureAction?.Invoke();
+            }
+            base.WndProc(ref m);
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                UnregisterHotKey(Handle, HOTKEY_ID);
+                DestroyHandle();
+                _disposed = true;
+                LogHelper.LogInfo("Global kısayol tuşu kaldırıldı");
+            }
         }
     }
 }

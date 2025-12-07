@@ -128,7 +128,8 @@ namespace QSolver
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ShortcutKeyDisplayString = "Ctrl+Shift+Q"
             };
             captureItem.Click += CaptureScreen_Click;
 

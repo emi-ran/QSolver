@@ -2,80 +2,109 @@
 
 Türkçe | [English](README.md)
 
-QSolver, ekranınızdaki soruları yakalamak ve işlemek için tasarlanmış bir Windows uygulamasıdır. Sistem tepsisinde durarak ihtiyaç duyduğunuzda hemen kullanıma hazırdır.
+<div align="center">
 
-Sürüm: 1.3.0
+**Yapay zeka destekli soru çözücü**
 
-## Özellikler
+[![Sürüm](https://img.shields.io/badge/sürüm-1.4.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/emi-ran/QSolver)
+[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-- **Ekran Yakalama**: Basit bir tıkla ve sürükle arayüzü ile ekranınızın istediğiniz bölgesini kolayca yakalayın
-- **Akıllı İşleme**: Yakalanan soruların hızlı analizi ve anında sonuç
-- **Sistem Tepsisi Entegrasyonu**: Her zaman erişilebilir ama asla yolunuza çıkmaz
-- **Modern Arayüz**: Temiz ve sezgisel arayüz, akıcı animasyonlar ve koyu tema
-- **Soru Düzenleme**: Metin formatını koruyan dahili soru düzenleyici
-- **Çözüm Adımları**: Her soru için detaylı çözüm adımları
-- **Geçici Depolama**: Yakalamaları otomatik olarak geçici bir klasörde saklar
-- **Özel Tema**: Yuvarlak köşeli ve yumuşak geçişli modern koyu tema
-- **API Anahtarı Yönetimi**: Farklı servisler için API anahtarlarınızı kolayca yönetin
-- **API Anahtarı Doğrulama**: API anahtarlarınızın çalışıp çalışmadığını test edin, renk kodlu durum göstergeleri ile kontrol edin (yeşil: geçerli, kırmızı: geçersiz, sarı: rate limit)
+[📥 v1.4.0 İndir](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
 
-## Gereksinimler
+</div>
 
-- Windows İşletim Sistemi
-- .NET 8.0 Desktop Runtime veya üzeri ([Buradan indirin](https://dotnet.microsoft.com/download/dotnet/8.0/runtime))
-- Visual Studio 2022 (geliştirme için)
-- Yapay zeka servisleri için internet bağlantısı
+---
 
-## Kurulum
+## ✨ QSolver Nedir?
 
-1. [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime)'ın yüklü olduğundan emin olun
-2. Releases sayfasından en son sürümü indirin
-3. Dosyaları istediğiniz konuma çıkartın
-4. `QSolver.exe`'yi çalıştırın
-5. Sistem tepsisi menüsünden API anahtarlarınızı yapılandırın
-6. API anahtarlarını ekledikten sonra "Kontrol Et" butonu ile geçerliliklerini test edin
+QSolver, ekranınızdaki soruları yakalayıp yapay zeka ile çözen bir Windows uygulamasıdır. Soruyu seçin, anında cevabı alın!
 
-## Kullanım
+<div align="center">
+<img src="images/Cozuldu.png" alt="Soru Çözüldü" width="600"/>
+</div>
 
-1. Sistem tepsisindeki QSolver simgesine tıklayın
-2. "Soru Seç" seçeneğini seçin
-3. Sorunun bulunduğu bölgeyi seçmek için tıklayıp sürükleyin
-4. İşleme animasyonunun tamamlanmasını bekleyin
-5. Sonucu ve çözüm adımlarını görüntüleyin
-6. Gerekirse dahili düzenleyici ile soruyu düzenleyin
-7. İşiniz bittiğinde "Onayla" butonuna tıklayın
+## 🚀 Özellikler
 
-## Geliştirme
+| Özellik                   | Açıklama                                        |
+| ------------------------- | ----------------------------------------------- |
+| 📸 **Ekran Yakalama**     | Tıkla-sürükle ile herhangi bir soruyu seç       |
+| ⚡ **Turbo Mod**          | Çözüm adımları olmadan hızlı cevap              |
+| 📚 **Ders Algılama**      | Otomatik ders kategorisi (Matematik, Fizik vb.) |
+| 📜 **Çözüm Geçmişi**      | Tüm çözümlerini görüntüle ve ara                |
+| 🔑 **Çoklu API Anahtarı** | Birden fazla API anahtarı yönetimi              |
+| 🎨 **Koyu Tema**          | Akıcı animasyonlarla modern arayüz              |
 
-Projeyi derlemek için:
+## 📸 Ekran Görüntüleri
+
+### Çözüm Geçmişi
+
+Tüm çözülmüş sorularını görüntüle, ders veya başlığa göre ara:
+
+<div align="center">
+<img src="images/cozum-gecmisi.png" alt="Çözüm Geçmişi" width="700"/>
+</div>
+
+### Ayarlar
+
+AI modelini, Turbo Modu ve kısayol tuşlarını yapılandır:
+
+<div align="center">
+<img src="images/ayarlar.png" alt="Ayarlar" width="400"/>
+</div>
+
+### API Anahtarı Yönetimi
+
+Birden fazla API anahtarı ekle ve doğrula:
+
+<div align="center">
+<img src="images/api-anahtarlari.png" alt="API Anahtarları" width="400"/>
+</div>
+
+## 📥 Kurulum
+
+### Gereksinimler
+
+- Windows 10/11
+- [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime)
+
+### Adımlar
+
+1. [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0) sayfasından `QSolver.exe` dosyasını indirin
+2. Uygulamayı çalıştırın
+3. Sistem tepsisi menüsünden Gemini API anahtarınızı ekleyin
+4. Soru çözmeye başlayın!
+
+## 🎮 Kullanım
+
+1. Sistem tepsisindeki QSolver simgesine **sağ tıklayın**
+2. **"Soru Seç"** seçeneğini seçin
+3. Soru alanını seçmek için **tıklayıp sürükleyin**
+4. Yapay zekanın işlemesini bekleyin
+5. Cevabı ve çözüm adımlarını görüntüleyin
+
+**Kısayol Tuşu:** Yakalamak için `Ctrl + Shift + Q`
+
+## 🛠️ Geliştirme
 
 ```bash
-dotnet restore
+# Klonla
+git clone https://github.com/emi-ran/QSolver.git
+
+# Derle
 dotnet build
-```
 
-Geliştirme modunda çalıştırmak için:
-
-```bash
+# Çalıştır
 dotnet run
+
+# Release derlemesi
+dotnet publish -c Release -p:PublishSingleFile=true
 ```
 
-Release derlemesi oluşturmak için:
+## 📄 Lisans
 
-```bash
-dotnet publish -c Release --self-contained false -p:PublishSingleFile=true
-```
+MIT Lisansı - detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
-Çıktı dosyası `bin/Release/net8.0-windows/win-x64/publish/` klasöründe olacaktır.
+## 🙏 Özel Teşekkür
 
-## Katkıda Bulunma
-
-Katkılarınızı bekliyoruz! Dilediğiniz zaman Pull Request gönderebilirsiniz.
-
-## Lisans
-
-Bu proje MIT Lisansı ile lisanslanmıştır - detaylar için LICENSE dosyasına bakınız.
-
-## Özel Teşekkür
-
-Bu projenin fikrini oluşturan ve var olma sebebi olan Bayazıt S.'ye özel teşekkürlerimi sunarım. O olmasaydı böyle bir programı yapmak benim aklıma gelmeyecekti bile. Kendisinin fikri bulmasıyla bu projeyi yapmaya başladım.
+Bu projenin fikrini ortaya koyan ve var olma sebebi olan **Bayazıt S.**'ye özel teşekkürler.

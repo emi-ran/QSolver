@@ -2,74 +2,109 @@
 
 [Türkçe](README-tr.md) | English
 
-QSolver is a Windows application that helps you capture and process questions from your screen. It sits in your system tray, ready to assist you whenever needed.
+<div align="center">
 
-Version: 1.3.0
+**AI-powered question solver for Windows**
 
-## Features
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/emi-ran/QSolver)
+[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-- **Screen Capture**: Easily capture any region of your screen with a simple click and drag interface
-- **Smart Processing**: Quick analysis of captured questions with instant results
-- **API Key Management**: Manage multiple API keys with validation support
-- **API Key Validation**: Test your API keys to ensure they're working correctly with color-coded status indicators
-- **System Tray Integration**: Always accessible but never in your way
-- **Modern UI**: Clean and intuitive interface with smooth animations
-- **Temporary Storage**: Automatically saves captures in a temporary folder
+[📥 Download v1.4.0](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
 
-## Requirements
+</div>
 
-- Windows OS
-- .NET 8.0 Runtime or later ([Download here](https://dotnet.microsoft.com/download/dotnet/8.0/runtime))
-- Visual Studio 2022 (for development)
-- Internet connection for AI services
+---
 
-## Installation
+## ✨ What is QSolver?
 
-1. Make sure you have [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) installed
-2. Download the latest release from the releases page
-3. Extract the files to your preferred location
-4. Run `QSolver.exe`
-5. Configure your API keys from the system tray menu
+QSolver is a Windows application that captures questions from your screen and solves them using AI. Simply select a region with a question, and get the answer instantly!
 
-## Usage
+<div align="center">
+<img src="images/Cozuldu.png" alt="Question Solved" width="600"/>
+</div>
 
-1. Click the QSolver icon in the system tray
-2. Select "Soru Seç" (Select Question)
-3. Click and drag to select the region containing your question
-4. Wait for the processing animation
-5. View the result and click "Onayla" (Confirm) when done
+## 🚀 Features
 
-## Development
+| Feature                  | Description                                            |
+| ------------------------ | ------------------------------------------------------ |
+| 📸 **Screen Capture**    | Click and drag to select any question on screen        |
+| ⚡ **Turbo Mode**        | Fast answers without solution steps                    |
+| 📚 **Subject Detection** | Automatic subject categorization (Math, Physics, etc.) |
+| 📜 **Solution History**  | Browse all your previous solutions                     |
+| 🔑 **Multi API Key**     | Manage multiple API keys with validation               |
+| 🎨 **Dark Theme**        | Modern UI with smooth animations                       |
 
-To build the project:
+## 📸 Screenshots
+
+### Solution History
+
+Browse all your solved questions, search by subject or title:
+
+<div align="center">
+<img src="images/cozum-gecmisi.png" alt="Solution History" width="700"/>
+</div>
+
+### Settings
+
+Configure AI model, Turbo Mode, and keyboard shortcuts:
+
+<div align="center">
+<img src="images/ayarlar.png" alt="Settings" width="400"/>
+</div>
+
+### API Key Management
+
+Add and validate multiple API keys:
+
+<div align="center">
+<img src="images/api-anahtarlari.png" alt="API Keys" width="400"/>
+</div>
+
+## 📥 Installation
+
+### Requirements
+
+- Windows 10/11
+- [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime)
+
+### Steps
+
+1. Download `QSolver.exe` from [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
+2. Run the application
+3. Add your Gemini API key from the tray menu
+4. Start solving questions!
+
+## 🎮 Usage
+
+1. **Right-click** the QSolver icon in system tray
+2. Select **"Soru Seç"** (Select Question)
+3. **Click and drag** to select the question area
+4. Wait for the AI to process
+5. View the answer and solution steps
+
+**Keyboard Shortcut:** `Ctrl + Shift + Q` to capture
+
+## 🛠️ Development
 
 ```bash
-dotnet restore
+# Clone
+git clone https://github.com/emi-ran/QSolver.git
+
+# Build
 dotnet build
-```
 
-To run in development mode:
-
-```bash
+# Run
 dotnet run
+
+# Release build
+dotnet publish -c Release -p:PublishSingleFile=true
 ```
 
-To create a release build:
+## 📄 License
 
-```bash
-dotnet publish -c Release --self-contained false -p:PublishSingleFile=true
-```
+MIT License - see [LICENSE](LICENSE) for details.
 
-The output will be in `bin/Release/net8.0-windows/win-x64/publish/`
+## 🙏 Special Thanks
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Special Thanks
-
-I would like to express my special thanks to Bayazıt S. for creating the idea of this project. If he hadn't come up with the idea, I wouldn't have even thought of making such a program. I would like to thank him for his idea and for his support.
+Special thanks to **Bayazıt S.** for the original idea that made this project possible.
