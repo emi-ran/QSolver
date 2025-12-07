@@ -86,7 +86,6 @@ _ReSharper*/
 
 # Uygulamamıza özel
 temp/
-*.png
 create-certificate.ps1
 certificate.pfx
 .github/workflows/release.yml
