@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using QSolver.Services;
 
 namespace QSolver
 {
@@ -32,7 +33,7 @@ namespace QSolver
             {
                 ApiKey = apiKey,
                 Status = ApiKeyStatus.Unknown,
-                Message = "Kontrol ediliyor..."
+                Message = LocalizationService.Get("ApiKey.Checking")
             };
 
             try
@@ -45,7 +46,7 @@ namespace QSolver
                 if (response.IsSuccessStatusCode)
                 {
                     result.Status = ApiKeyStatus.Valid;
-                    result.Message = "Geçerli";
+                    result.Message = LocalizationService.Get("ApiKey.Status.Valid");
                     return result;
                 }
 
@@ -55,7 +56,7 @@ namespace QSolver
                 if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
                     result.Status = ApiKeyStatus.RateLimit;
-                    result.Message = "Rate limit aşıldı";
+                    result.Message = LocalizationService.Get("ApiKey.Status.RateLimit");
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 {
@@ -63,24 +64,24 @@ namespace QSolver
                     if (errorContent.Contains("API_KEY_INVALID") || errorContent.Contains("invalid"))
                     {
                         result.Status = ApiKeyStatus.Invalid;
-                        result.Message = "Geçersiz API anahtarı";
+                        result.Message = LocalizationService.Get("ApiKey.Status.Invalid");
                     }
                     else
                     {
                         result.Status = ApiKeyStatus.Invalid;
-                        result.Message = "Hatalı istek";
+                        result.Message = LocalizationService.Get("Common.Error") + " (Bad Request)";
                     }
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
                     result.Status = ApiKeyStatus.Invalid;
-                    result.Message = "Erişim reddedildi";
+                    result.Message = LocalizationService.Get("ApiKey.Status.Invalid") + " (Forbidden)";
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     // 404 hatası - muhtemelen API key geçersiz veya endpoint yanlış
                     result.Status = ApiKeyStatus.Invalid;
-                    result.Message = "API bulunamadı (404)";
+                    result.Message = LocalizationService.Get("ApiKey.Status.Invalid") + " (404)";
                 }
                 else
                 {
@@ -91,12 +92,12 @@ namespace QSolver
             catch (HttpRequestException ex)
             {
                 result.Status = ApiKeyStatus.Unknown;
-                result.Message = "Bağlantı hatası: " + ex.Message;
+                result.Message = LocalizationService.Get("Common.Error") + ": " + ex.Message;
             }
             catch (Exception ex)
             {
                 result.Status = ApiKeyStatus.Unknown;
-                result.Message = "Hata: " + ex.Message;
+                result.Message = LocalizationService.Get("Common.Error") + ": " + ex.Message;
             }
 
             return result;

@@ -8,14 +8,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsFormsHighDpiAutoResizing>true</EnableWindowsFormsHighDpiAutoResizing>
     <ApplicationIcon>Resources\qsolver.ico</ApplicationIcon>
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0</AssemblyVersion>
-    <FileVersion>1.4.0</FileVersion>
+    <Version>1.5.0</Version>
+    <AssemblyVersion>1.5.0</AssemblyVersion>
+    <FileVersion>1.5.0</FileVersion>
     <Company>QSolver</Company>
     <Product>QSolver</Product>
-    <Description>Ekran görüntüsünden soru çözme uygulaması</Description>
+    <Description>AI-powered question solver from screenshots</Description>
     <Copyright>Copyright © 2025</Copyright>
-    <NeutralLanguage>tr-TR</NeutralLanguage>
+    <NeutralLanguage>en-US</NeutralLanguage>
     
     <!-- NOT: .NET Core'da PFX imzalama desteklenmiyor. Build sonrası signtool kullanın:
          signtool sign /f PcApp.pfx /fd SHA256 bin\Release\net8.0-windows\QSolver.exe -->
@@ -36,12 +36,20 @@
     </Content>
   </ItemGroup>
 
+  <!-- Dil dosyalarını çıktı dizinine kopyala -->
+  <ItemGroup>
+    <Content Include="Languages\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Release konfigürasyonu için tek dosya ayarları -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 

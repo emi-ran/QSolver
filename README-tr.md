@@ -6,11 +6,11 @@ Türkçe | [English](README.md)
 
 **Yapay zeka destekli soru çözücü**
 
-[![Sürüm](https://img.shields.io/badge/sürüm-1.4.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
+[![Sürüm](https://img.shields.io/badge/sürüm-1.5.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.5.0)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/emi-ran/QSolver)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-[📥 v1.4.0 İndir](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0)
+[📥 v1.5.0 İndir](https://github.com/emi-ran/QSolver/releases/tag/v1.5.0)
 
 </div>
 
@@ -70,7 +70,7 @@ Birden fazla API anahtarı ekle ve doğrula:
 
 ### Adımlar
 
-1. [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.4.0) sayfasından `QSolver.exe` dosyasını indirin
+1. [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.5.0) sayfasından `QSolver.exe` dosyasını indirin
 2. Uygulamayı çalıştırın
 3. Sistem tepsisi menüsünden Gemini API anahtarınızı ekleyin
 4. Soru çözmeye başlayın!

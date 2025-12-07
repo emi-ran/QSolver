@@ -19,7 +19,7 @@ namespace QSolver
 
         public ApiKeyForm()
         {
-            this.Text = "API Anahtarları";
+            this.Text = QSolver.Services.LocalizationService.Get("ApiKey.Title");
             this.Size = new Size(550, 350);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
@@ -37,7 +37,7 @@ namespace QSolver
             // Ekle butonu
             addButton = new Button
             {
-                Text = "Ekle",
+                Text = QSolver.Services.LocalizationService.Get("Common.Add"),
                 Width = 80,
                 Height = 30,
                 Location = new Point(10, 10),
@@ -48,7 +48,7 @@ namespace QSolver
             // Düzenle butonu
             editButton = new Button
             {
-                Text = "Düzenle",
+                Text = QSolver.Services.LocalizationService.Get("Common.Edit"),
                 Width = 80,
                 Height = 30,
                 Location = new Point(100, 10),
@@ -60,7 +60,7 @@ namespace QSolver
             // Kaldır butonu
             removeButton = new Button
             {
-                Text = "Kaldır",
+                Text = QSolver.Services.LocalizationService.Get("Common.Delete"),
                 Width = 80,
                 Height = 30,
                 Location = new Point(190, 10),
@@ -72,7 +72,7 @@ namespace QSolver
             // Kontrol Et butonu
             validateButton = new Button
             {
-                Text = "Kontrol Et",
+                Text = QSolver.Services.LocalizationService.Get("ApiKey.ValidateButton"),
                 Width = 100,
                 Height = 30,
                 Location = new Point(280, 10),
@@ -83,7 +83,7 @@ namespace QSolver
             // Kapat butonu
             closeButton = new Button
             {
-                Text = "Kapat",
+                Text = QSolver.Services.LocalizationService.Get("Common.Close"),
                 Width = 80,
                 Height = 30,
                 Location = new Point(this.ClientSize.Width - 90, 10),
@@ -117,9 +117,9 @@ namespace QSolver
             apiKeyListView.DrawSubItem += ApiKeyListView_DrawSubItem;
             apiKeyListView.DrawColumnHeader += ApiKeyListView_DrawColumnHeader;
 
-            apiKeyListView.Columns.Add("API Anahtarı", 180);
-            apiKeyListView.Columns.Add("Açıklama", 150);
-            apiKeyListView.Columns.Add("Durum", 150);
+            apiKeyListView.Columns.Add(QSolver.Services.LocalizationService.Get("ApiKey.KeyLabel"), 180);
+            apiKeyListView.Columns.Add(QSolver.Services.LocalizationService.Get("ApiKey.DescLabel"), 150);
+            apiKeyListView.Columns.Add(QSolver.Services.LocalizationService.Get("Common.Info"), 150);
 
             // Kontrolleri forma ekle - Önce panel, sonra ListView ekleyin
             this.Controls.Add(buttonPanel);
@@ -209,7 +209,7 @@ namespace QSolver
         private async void ValidateButton_Click(object? sender, EventArgs e)
         {
             validateButton.Enabled = false;
-            validateButton.Text = "Kontrol ediliyor...";
+            validateButton.Text = QSolver.Services.LocalizationService.Get("ApiKey.Checking");
             validationResults.Clear();
 
             try
@@ -240,8 +240,8 @@ namespace QSolver
                 apiKeyListView.Invalidate();
 
                 MessageBox.Show(
-                    "API anahtarları kontrol edildi.",
-                    "Bilgi",
+                    QSolver.Services.LocalizationService.Get("ApiKey.CheckComplete"),
+                    QSolver.Services.LocalizationService.Get("Common.Info"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
@@ -249,14 +249,14 @@ namespace QSolver
             {
                 MessageBox.Show(
                     $"API anahtarları kontrol edilirken hata oluştu: {ex.Message}",
-                    "Hata",
+                    QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
             finally
             {
                 validateButton.Enabled = true;
-                validateButton.Text = "Kontrol Et";
+                validateButton.Text = QSolver.Services.LocalizationService.Get("ApiKey.ValidateButton");
             }
         }
 
@@ -349,8 +349,8 @@ namespace QSolver
                 if (apiKey != null)
                 {
                     var result = MessageBox.Show(
-                        "Seçili API anahtarını silmek istediğinizden emin misiniz?",
-                        "Onay",
+                        QSolver.Services.LocalizationService.Get("ApiKey.DeleteConfirm"),
+                        QSolver.Services.LocalizationService.Get("Common.Confirm"),
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
@@ -402,7 +402,7 @@ namespace QSolver
         {
             ApiKey = apiKey ?? new ApiKey();
 
-            this.Text = apiKey == null ? "API Anahtarı Ekle" : "API Anahtarı Düzenle";
+            this.Text = apiKey == null ? QSolver.Services.LocalizationService.Get("ApiKey.AddTitle") : QSolver.Services.LocalizationService.Get("ApiKey.EditTitle");
             this.Size = new Size(450, 200);
             this.StartPosition = FormStartPosition.CenterParent;
             this.MaximizeBox = false;
@@ -414,7 +414,7 @@ namespace QSolver
             // API Anahtarı etiketi
             var keyLabel = new Label
             {
-                Text = "API Anahtarı:",
+                Text = QSolver.Services.LocalizationService.Get("ApiKey.KeyLabel"),
                 Location = new Point(20, 25),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular)
@@ -433,7 +433,7 @@ namespace QSolver
             // Açıklama etiketi
             var descriptionLabel = new Label
             {
-                Text = "Açıklama:",
+                Text = QSolver.Services.LocalizationService.Get("ApiKey.DescLabel"),
                 Location = new Point(20, 65),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular)
@@ -452,7 +452,7 @@ namespace QSolver
             // Kaydet butonu
             saveButton = new Button
             {
-                Text = "Kaydet",
+                Text = QSolver.Services.LocalizationService.Get("Common.Save"),
                 DialogResult = DialogResult.OK,
                 Location = new Point(230, 120),
                 Width = 90,
@@ -464,7 +464,7 @@ namespace QSolver
             // İptal butonu
             cancelButton = new Button
             {
-                Text = "İptal",
+                Text = QSolver.Services.LocalizationService.Get("Common.Cancel"),
                 DialogResult = DialogResult.Cancel,
                 Location = new Point(330, 120),
                 Width = 90,
@@ -488,7 +488,7 @@ namespace QSolver
         {
             if (string.IsNullOrWhiteSpace(keyTextBox.Text))
             {
-                MessageBox.Show("API anahtarı boş olamaz.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(QSolver.Services.LocalizationService.Get("ApiKey.EmptyError"), QSolver.Services.LocalizationService.Get("Common.Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.DialogResult = DialogResult.None;
                 return;
             }

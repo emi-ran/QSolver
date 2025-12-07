@@ -9,6 +9,8 @@ using System.Linq;
 using QSolver.Helpers;
 using QSolver.Models;
 
+using QSolver.Services;
+
 namespace QSolver
 {
     public class GeminiRequest
@@ -95,8 +97,8 @@ namespace QSolver
         private static object GetSolutionSchema(List<string> availableLectures)
         {
             string lectureDescription = availableLectures.Count > 0
-                ? $"Sorunun dersi. Mevcut dersler: [{string.Join(", ", availableLectures)}]. Bu derslerden biri eşleşiyorsa onu yaz, yoksa yeni ders adı yaz (örn: Türkçe, Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, İngilizce, Din Kültürü)"
-                : "Sorunun dersi (örn: Türkçe, Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, İngilizce, Din Kültürü)";
+                ? $"{LocalizationService.Get("Result.Lecture", "")} [{string.Join(", ", availableLectures)}]. " + (LocalizationService.IsTurkish ? "Bu derslerden biri eşleşiyorsa onu yaz, yoksa yeni ders adı yaz." : "If matches write it, else write new lecture name.")
+                : LocalizationService.IsTurkish ? "Sorunun dersi (örn: Türkçe, Matematik, Fizik...)" : "Lecture of the question (e.g. Math, Physics...)";
 
             return new
             {
@@ -120,8 +122,8 @@ namespace QSolver
         private static object GetTurboSchema(List<string> availableLectures)
         {
             string lectureDescription = availableLectures.Count > 0
-                ? $"Sorunun dersi. Mevcut: [{string.Join(", ", availableLectures)}]. Eşleşiyorsa seç, yoksa yeni yaz."
-                : "Sorunun dersi (Türkçe, Matematik, Fizik vb.)";
+                ? $"{LocalizationService.Get("Result.Lecture", "")} [{string.Join(", ", availableLectures)}]. " + (LocalizationService.IsTurkish ? "Eşleşiyorsa seç, yoksa yeni yaz." : "Select if matches, else write new.")
+                : LocalizationService.IsTurkish ? "Sorunun dersi (Türkçe, Matematik, Fizik vb.)" : "Lecture of the question (Math, Physics etc.)";
 
             return new
             {
@@ -172,17 +174,7 @@ namespace QSolver
                                 {
                                     parts = new[]
                                     {
-                                        new Part { text = @"Bu görseli analiz et.
-
-Eğer görselde bir SORU ve ŞIKLAR (A, B, C, D, E) varsa:
-- Sorunun metnini oku
-- Her satırı ve şıkkı ayrı satırda yaz (newline ile ayır)
-- Orijinal düzeni koru
-
-Eğer görselde soru YOKSA veya şıklar YOKSA:
-- Sadece şunu yaz: {""question_not_found"": true}
-
-Ek açıklama ekleme, sadece metni veya JSON'u döndür." },
+                                        new Part { text = LocalizationService.Get("Prompts.Analysis") },
                                         new Part
                                         {
                                             inline_data = new InlineData
@@ -324,24 +316,7 @@ Ek açıklama ekleme, sadece metni veya JSON'u döndür." },
                                     {
                                         new Part
                                         {
-                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki metni analiz et.
-
-ÖNEMLİ: Eğer metin bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:
-- solved: false olmalı
-- answers: boş bırak
-- title: 'Soru bulunamadı' yaz
-- explanation: 'Bu metin bir soru içermiyor.' yaz
-
-Eğer metin bir soru ise ve şıklar varsa:
-- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
-- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
-- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
-- explanation alanında çözümü markdown formatında adım adım açıkla
-- title alanına kısa bir başlık yaz (max 50 karakter)
-- lecture alanına sorunun dersini yaz (Türkçe, Matematik, Fizik vb.)" + lectureHint + @"
-
-Metin:
-" + questionText
+                                            text = LocalizationService.Get("Prompts.Solve") + lectureHint + "\n\n" + (LocalizationService.IsTurkish ? "Metin:" : "Text:") + "\n" + questionText
                                         }
                                     }
                                 }
@@ -476,17 +451,7 @@ Metin:
                                     {
                                         new Part
                                         {
-                                            text = @"Bu görseli analiz et.
-
-ÖNEMLİ: Eğer görsel bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:
-- solved: false olmalı
-- answers: boş bırak veya 'Soru değil' yaz
-- title: 'Soru bulunamadı' yaz
-
-Eğer görsel bir soru ise ve şıklar varsa:
-- solved: true
-- answers: Tek soru için 'A', çoklu sorular için 'A,B,C' formatında
-- title: kısa başlık (max 30 karakter)" + lectureHint
+                                            text = LocalizationService.Get("Prompts.DirectSolve") + lectureHint
                                         },
                                         new Part
                                         {
@@ -604,7 +569,7 @@ Eğer görsel bir soru ise ve şıklar varsa:
                             {
                                 new Part
                                 {
-                                    text = $"Bu soru metni için kısa ve açıklayıcı bir başlık üret. Maksimum 50 karakter olsun. Sadece başlığı ver, JSON formatında değil. Soru metni: {questionText}"
+                                    text = LocalizationService.Get("Prompts.TitleGen", questionText)
                                 }
                             }
                         }

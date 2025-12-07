@@ -52,7 +52,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Geçmiş dizinleri oluşturulurken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.DirCreateError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -93,7 +93,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Çözüm geçmişe eklenirken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.AddError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -207,7 +207,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Geçmiş öğesi silinirken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.DeleteError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -230,7 +230,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Geçmiş temizlenirken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.ClearError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -256,7 +256,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Geçmiş yüklenirken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 historyItems = new List<SolutionHistoryItem>();
             }
@@ -276,7 +276,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Geçmiş kaydedilirken hata: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

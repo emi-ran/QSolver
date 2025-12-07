@@ -124,7 +124,7 @@ namespace QSolver
             };
 
             // Ana işlemler
-            var captureItem = new ToolStripMenuItem("🔍 Soru Seç")
+            var captureItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.Capture"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4),
@@ -133,7 +133,7 @@ namespace QSolver
             };
             captureItem.Click += CaptureScreen_Click;
 
-            var historyItem = new ToolStripMenuItem("📚 Çözüm Geçmişi")
+            var historyItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.History"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
@@ -143,14 +143,14 @@ namespace QSolver
             var separator1 = new ToolStripSeparator();
 
             // Ayarlar ve Konfigürasyon
-            var settingsItem = new ToolStripMenuItem("⚙️ Ayarlar")
+            var settingsItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.Settings"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
             };
             settingsItem.Click += Settings_Click;
 
-            var apiKeysItem = new ToolStripMenuItem("🔑 API Anahtarları")
+            var apiKeysItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.ApiKeys"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
@@ -160,7 +160,7 @@ namespace QSolver
             var separator2 = new ToolStripSeparator();
 
             // Araçlar ve Yardım
-            var logsItem = new ToolStripMenuItem("📋 Logları Görüntüle")
+            var logsItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.Logs"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)
@@ -169,7 +169,7 @@ namespace QSolver
 
             var separator3 = new ToolStripSeparator();
 
-            var exitItem = new ToolStripMenuItem("❌ Çıkış")
+            var exitItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.Exit"))
             {
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Padding = new Padding(8, 4, 8, 4)

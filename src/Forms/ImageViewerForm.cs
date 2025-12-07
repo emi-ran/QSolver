@@ -33,7 +33,7 @@ namespace QSolver.Forms
             this.SuspendLayout();
 
             // Form properties
-            this.Text = "QSolver - Görsel Görüntüleyici";
+            this.Text = QSolver.Services.LocalizationService.Get("Viewer.Title");
             this.Size = new Size(800, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(45, 45, 48);
@@ -124,7 +124,7 @@ namespace QSolver.Forms
             // Zoom label
             zoomLabel = new Label
             {
-                Text = "100%",
+                Text = string.Format(QSolver.Services.LocalizationService.Get("Viewer.Zoom"), 100),
                 Location = new Point(190, 15),
                 Size = new Size(60, 20),
                 ForeColor = Color.FromArgb(241, 241, 241),
@@ -135,7 +135,7 @@ namespace QSolver.Forms
             // Close button
             closeButton = new Button
             {
-                Text = "❌ Kapat",
+                Text = "❌ " + QSolver.Services.LocalizationService.Get("Common.Close"),
                 Location = new Point(this.ClientSize.Width - 120, 10),
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
@@ -205,7 +205,7 @@ namespace QSolver.Forms
 
             imagePictureBox.Location = new Point(x, y);
 
-            zoomLabel.Text = $"{(int)(zoomFactor * 100)}%";
+            zoomLabel.Text = string.Format(QSolver.Services.LocalizationService.Get("Viewer.Zoom"), (int)(zoomFactor * 100));
         }
 
         private void ZoomInButton_Click(object? sender, EventArgs e)

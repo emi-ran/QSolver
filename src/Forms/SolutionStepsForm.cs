@@ -12,7 +12,7 @@ namespace QSolver
 
         public SolutionStepsForm(string solutionText)
         {
-            this.Text = "Çözüm Adımları";
+            this.Text = QSolver.Services.LocalizationService.Get("Result.StepsButton");
             this.Size = new Size(800, 600);
             this.MinimumSize = new Size(600, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -127,7 +127,7 @@ namespace QSolver
             // Kapat butonu
             var closeButton = new Button
             {
-                Text = "Kapat",
+                Text = QSolver.Services.LocalizationService.Get("Common.Close"),
                 Width = 100,
                 Height = 30,
                 Dock = DockStyle.Bottom,

@@ -23,7 +23,7 @@ namespace QSolver
             UpdateStyles();
 
             this.questionText = initialText;
-            this.Text = "Soruyu Düzenle";
+            this.Text = QSolver.Services.LocalizationService.Get("QuestionEdit.Title");
             this.Size = new Size(800, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
@@ -75,7 +75,7 @@ namespace QSolver
             // Kaydet butonu
             var saveButton = new Button
             {
-                Text = "Kaydet",
+                Text = QSolver.Services.LocalizationService.Get("Common.Save"),
                 Width = 100,
                 Height = 35,
                 Location = new Point(buttonPanel.Width - 230, 12),
@@ -92,7 +92,7 @@ namespace QSolver
             // İptal butonu
             var cancelButton = new Button
             {
-                Text = "İptal",
+                Text = QSolver.Services.LocalizationService.Get("Common.Cancel"),
                 Width = 100,
                 Height = 35,
                 Location = new Point(buttonPanel.Width - 120, 12),
@@ -228,7 +228,7 @@ namespace QSolver
         {
             if (string.IsNullOrWhiteSpace(questionTextBox.Text))
             {
-                MessageBox.Show("Soru metni boş olamaz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(QSolver.Services.LocalizationService.Get("QuestionEdit.EmptyError"), QSolver.Services.LocalizationService.Get("Common.Warning"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 

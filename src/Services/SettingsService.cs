@@ -94,7 +94,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ayarlar yüklenirken hata oluştu: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Settings.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 settings = new AppSettings();
             }
@@ -115,7 +115,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ayarlar kaydedilirken hata oluştu: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Settings.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

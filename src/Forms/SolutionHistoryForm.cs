@@ -35,7 +35,7 @@ namespace QSolver.Forms
             this.SuspendLayout();
 
             // Form properties
-            this.Text = "QSolver - Çözüm Geçmişi";
+            this.Text = QSolver.Services.LocalizationService.Get("History.Title");
             this.Size = new Size(1000, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(45, 45, 48);
@@ -52,9 +52,9 @@ namespace QSolver.Forms
             // Search box
             var searchLabel = new Label
             {
-                Text = "Arama:",
+                Text = QSolver.Services.LocalizationService.Get("Common.Search"),
                 Location = new Point(20, 20),
-                Size = new Size(50, 23),
+                AutoSize = true,
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Font = new Font("Segoe UI", 9F)
             };
@@ -77,13 +77,13 @@ namespace QSolver.Forms
                 Size = new Size(200, 23),
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Font = new Font("Segoe UI", 9F),
-                Text = "Toplam: 0 çözüm"
+                Text = string.Format(QSolver.Services.LocalizationService.Get("History.Total"), 0)
             };
 
             // Clear all button
             clearAllButton = new Button
             {
-                Text = "Tümünü Temizle",
+                Text = QSolver.Services.LocalizationService.Get("History.ClearAll"),
                 Location = new Point(520, 15),
                 Size = new Size(120, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
@@ -110,23 +110,12 @@ namespace QSolver.Forms
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left
             };
 
-            // ListView columns - son sütun kalan alanı doldursun (-2 = fill)
-            historyListView.Columns.Add("Ders", 70);
-            historyListView.Columns.Add("Başlık", 180);
-            historyListView.Columns.Add("Cevap", 50);
-            historyListView.Columns.Add("Tarih", 110);
-            historyListView.Columns.Add("Model", -2); // Kalan alanı doldur
-
-            // Çift tıklamada otomatik genişleme olmasın
-            historyListView.ColumnWidthChanging += (s, e) =>
-            {
-                // Çift tıklama ile genişletmeyi engelle
-                if (e.ColumnIndex == historyListView.Columns.Count - 1)
-                {
-                    e.Cancel = true;
-                    e.NewWidth = historyListView.Columns[e.ColumnIndex].Width;
-                }
-            };
+            // ListView columns
+            historyListView.Columns.Add(QSolver.Services.LocalizationService.Get("Result.Lecture", "").Replace(":", "").Trim(), 80);
+            historyListView.Columns.Add(QSolver.Services.LocalizationService.Get("History.ColumnTitle"), 170);
+            historyListView.Columns.Add(QSolver.Services.LocalizationService.Get("Result.Answer", "").Replace(":", "").Trim(), 60);
+            historyListView.Columns.Add(QSolver.Services.LocalizationService.Get("History.ColumnDate"), 100);
+            historyListView.Columns.Add(QSolver.Services.LocalizationService.Get("History.ColumnModel"), 80);
 
             historyListView.SelectedIndexChanged += HistoryListView_SelectedIndexChanged;
 
@@ -154,7 +143,7 @@ namespace QSolver.Forms
 
             // Tooltip
             toolTip = new ToolTip();
-            toolTip.SetToolTip(screenshotPictureBox, "Görseli büyütmek için tıklayın");
+            toolTip.SetToolTip(screenshotPictureBox, QSolver.Services.LocalizationService.Get("History.ImageTooltip"));
 
             // Question title
             questionTitleLabel = new Label
@@ -163,7 +152,7 @@ namespace QSolver.Forms
                 Size = new Size(210, 60),
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                Text = "Soru seçin...",
+                Text = QSolver.Services.LocalizationService.Get("History.SelectPrompt"),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -198,7 +187,7 @@ namespace QSolver.Forms
             // View steps button
             viewStepsButton = new Button
             {
-                Text = "Çözüm Adımlarını Görüntüle",
+                Text = QSolver.Services.LocalizationService.Get("History.ViewSteps"),
                 Location = new Point(10, 380),
                 Size = new Size(200, 35),
                 BackColor = Color.FromArgb(0, 120, 215),
@@ -214,7 +203,7 @@ namespace QSolver.Forms
             // Delete button
             deleteButton = new Button
             {
-                Text = "Sil",
+                Text = QSolver.Services.LocalizationService.Get("Common.Delete"),
                 Location = new Point(220, 380),
                 Size = new Size(100, 35),
                 BackColor = Color.FromArgb(220, 53, 69),
@@ -263,7 +252,7 @@ namespace QSolver.Forms
                 historyListView.Items.Add(listItem);
             }
 
-            statsLabel.Text = $"Toplam: {history.Count} çözüm";
+            statsLabel.Text = string.Format(QSolver.Services.LocalizationService.Get("History.Total"), history.Count);
         }
 
         private void SearchTextBox_TextChanged(object? sender, EventArgs e)
@@ -283,7 +272,7 @@ namespace QSolver.Forms
                 historyListView.Items.Add(listItem);
             }
 
-            statsLabel.Text = $"Bulunan: {searchResults.Count} çözüm";
+            statsLabel.Text = string.Format(QSolver.Services.LocalizationService.Get("History.Found"), searchResults.Count);
         }
 
         private void HistoryListView_SelectedIndexChanged(object? sender, EventArgs e)
@@ -309,7 +298,10 @@ namespace QSolver.Forms
                 ? $"[{selectedItem.Lecture}] {selectedItem.QuestionTitle}"
                 : selectedItem.QuestionTitle;
             questionTitleLabel.Text = titleWithLecture;
-            answerLabel.Text = $"Cevap: {selectedItem.Answer}";
+            answerLabel.Text = (selectedItem.Answer.Length == 1
+                ? QSolver.Services.LocalizationService.Get("Result.Answer", "").Trim()
+                : QSolver.Services.LocalizationService.Get("Result.Answers", "").Trim())
+                + ": " + selectedItem.Answer;
 
             // Newline karakterlerini Windows TextBox için düzenle
             var questionText = selectedItem.QuestionText;
@@ -356,7 +348,7 @@ namespace QSolver.Forms
 
         private void ClearDetailPanel()
         {
-            questionTitleLabel.Text = "Soru seçin...";
+            questionTitleLabel.Text = QSolver.Services.LocalizationService.Get("History.SelectPrompt");
             answerLabel.Text = "";
             questionTextBox.Text = "";
 
@@ -385,8 +377,8 @@ namespace QSolver.Forms
             if (selectedItem != null)
             {
                 var result = MessageBox.Show(
-                    "Bu çözümü silmek istediğinizden emin misiniz?",
-                    "Çözümü Sil",
+                    QSolver.Services.LocalizationService.Get("History.DeleteConfirm"),
+                    QSolver.Services.LocalizationService.Get("Common.Delete"),
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
@@ -407,8 +399,8 @@ namespace QSolver.Forms
         private void ClearAllButton_Click(object? sender, EventArgs e)
         {
             var result = MessageBox.Show(
-                "Tüm çözüm geçmişini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!",
-                "Tüm Geçmişi Sil",
+                QSolver.Services.LocalizationService.Get("History.ClearAllConfirm"),
+                QSolver.Services.LocalizationService.Get("History.ClearAll"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
 
@@ -444,7 +436,7 @@ namespace QSolver.Forms
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Görsel görüntülenirken hata oluştu: {ex.Message}", "Hata",
+                    MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.ImageError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

@@ -90,7 +90,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"API anahtarları yüklenirken hata oluştu: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("ApiKey.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 apiKeys = new List<ApiKey>();
             }
@@ -111,7 +111,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"API anahtarları kaydedilirken hata oluştu: {ex.Message}", "Hata",
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("ApiKey.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

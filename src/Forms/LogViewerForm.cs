@@ -16,7 +16,7 @@ namespace QSolver.Forms
 
         public LogViewerForm()
         {
-            Text = "Log Görüntüleyici";
+            Text = QSolver.Services.LocalizationService.Get("Logs.Title");
             Size = new Size(800, 600);
             MinimumSize = new Size(600, 400);
             StartPosition = FormStartPosition.CenterScreen;
@@ -60,7 +60,7 @@ namespace QSolver.Forms
 
             _clearButton = new Button
             {
-                Text = "Temizle",
+                Text = QSolver.Services.LocalizationService.Get("Logs.Clear"),
                 Width = 120,
                 Height = 35,
                 Font = new Font(Font.FontFamily, 10),
@@ -69,7 +69,7 @@ namespace QSolver.Forms
 
             _refreshButton = new Button
             {
-                Text = "Yenile",
+                Text = QSolver.Services.LocalizationService.Get("Logs.Refresh"),
                 Width = 120,
                 Height = 35,
                 Font = new Font(Font.FontFamily, 10),
@@ -121,8 +121,8 @@ namespace QSolver.Forms
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Loglar yüklenirken hata oluştu: {ex.Message}",
-                    "Hata",
+                    QSolver.Services.LocalizationService.Get("Logs.LoadError") + $": {ex.Message}",
+                    QSolver.Services.LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error
                 );
@@ -132,8 +132,8 @@ namespace QSolver.Forms
         private void ClearLogs()
         {
             DialogResult result = MessageBox.Show(
-                "Logları temizlemek istediğinizden emin misiniz?",
-                "Onay",
+                QSolver.Services.LocalizationService.Get("Logs.ClearConfirm"),
+                QSolver.Services.LocalizationService.Get("Common.Confirm"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
             );
@@ -148,8 +148,8 @@ namespace QSolver.Forms
                 catch (Exception ex)
                 {
                     MessageBox.Show(
-                        $"Loglar temizlenirken hata oluştu: {ex.Message}",
-                        "Hata",
+                        QSolver.Services.LocalizationService.Get("Logs.ClearError") + $": {ex.Message}",
+                        QSolver.Services.LocalizationService.Get("Common.Error"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error
                     );

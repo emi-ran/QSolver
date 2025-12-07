@@ -31,7 +31,10 @@ namespace QSolver
 
         public Program()
         {
-            LogHelper.LogInfo("Program başlatılıyor...");
+            // Localization servisini başlat
+            QSolver.Services.LocalizationService.Initialize();
+
+            LogHelper.LogInfo(QSolver.Services.LocalizationService.Get("App.Started"));
 
             // API anahtarı yöneticisinden rastgele bir anahtar al
             string apiKey = ApiKeyManager.GetRandomApiKey();
@@ -41,8 +44,8 @@ namespace QSolver
             {
                 LogHelper.LogWarning("API anahtarı bulunamadı");
                 MessageBox.Show(
-                    "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
-                    "Bilgi",
+                    QSolver.Services.LocalizationService.Get("App.NoApiKey"),
+                    QSolver.Services.LocalizationService.Get("Common.Info"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
@@ -55,7 +58,6 @@ namespace QSolver
 
             // Tray icon servisini oluştur
             trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm, ShowHistoryForm);
-            LogHelper.LogInfo("Program başlatıldı (Kısayol: Ctrl+Shift+Q)");
         }
 
         // Statik gemini servisi erişimi için metot
@@ -102,8 +104,8 @@ namespace QSolver
             {
                 LogHelper.LogWarning("API anahtarı bulunamadı");
                 MessageBox.Show(
-                    "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
-                    "Uyarı",
+                    QSolver.Services.LocalizationService.Get("App.NoApiKey"),
+                    QSolver.Services.LocalizationService.Get("Common.Warning"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
 
@@ -331,8 +333,8 @@ namespace QSolver
                     catch (Exception ex)
                     {
                         LogHelper.LogError("API isteği sırasında hata oluştu", ex);
-                        MessageBox.Show($"API isteği sırasında hata oluştu: {ex.Message}",
-                            "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Result.ApiRequestError")}: {ex.Message}",
+                            QSolver.Services.LocalizationService.Get("Common.Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
@@ -340,7 +342,7 @@ namespace QSolver
 
         private void Exit()
         {
-            LogHelper.LogInfo("Program kapatılıyor...");
+            LogHelper.LogInfo(QSolver.Services.LocalizationService.Get("App.Exit"));
             hotkeyWindow?.Dispose();
             trayIconService?.Dispose();
             Application.Exit();

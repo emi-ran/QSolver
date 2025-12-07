@@ -101,7 +101,7 @@ namespace QSolver
             // Düşünme etiketi
             thinkingLabel = new Label
             {
-                Text = "Soru Analiz Ediliyor",
+                Text = QSolver.Services.LocalizationService.Get("Result.Analyze"),
                 AutoSize = true,
                 Location = new Point(20, 20),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -113,7 +113,7 @@ namespace QSolver
             // Sonuç etiketi
             resultLabel = new Label
             {
-                Text = "Soru Analiz Edildi",
+                Text = QSolver.Services.LocalizationService.Get("Result.Analyzed"),
                 AutoSize = true,
                 Location = new Point(20, 20),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -125,7 +125,7 @@ namespace QSolver
             // Onay butonu
             confirmButton = new Button
             {
-                Text = "Çöz",
+                Text = QSolver.Services.LocalizationService.Get("Result.SolveButton"),
                 Size = new Size(110, 35),
                 Location = new Point(20, 55),
                 FlatStyle = FlatStyle.Flat,
@@ -140,7 +140,7 @@ namespace QSolver
             // Düzenleme butonu
             editButton = new Button
             {
-                Text = "Düzenle",
+                Text = QSolver.Services.LocalizationService.Get("Common.Edit"),
                 Size = new Size(110, 35),
                 Location = new Point(140, 55),
                 FlatStyle = FlatStyle.Flat,
@@ -155,7 +155,7 @@ namespace QSolver
             // Çözüm adımları butonu
             solutionStepsButton = new Button
             {
-                Text = "Çözüm Adımları",
+                Text = QSolver.Services.LocalizationService.Get("Result.StepsButton"),
                 Size = new Size(240, 35),
                 Location = new Point(20, 100),
                 FlatStyle = FlatStyle.Flat,
@@ -200,8 +200,8 @@ namespace QSolver
                 animationDots = (animationDots + 1) % 4;
                 string dots = new string('.', animationDots);
                 thinkingLabel.Text = currentState == FormState.Analyzing
-                    ? $"Soru Analiz Ediliyor{dots}"
-                    : $"Soru Çözülüyor{dots}";
+                    ? $"{QSolver.Services.LocalizationService.Get("Result.Analyze")}{dots}"
+                    : $"{QSolver.Services.LocalizationService.Get("Result.Solving")}{dots}";
             };
 
             // Buton hover efektleri
@@ -295,7 +295,7 @@ namespace QSolver
         {
             if (currentState == FormState.Analyzed)
             {
-                confirmButton.Text = "Tamam";
+                confirmButton.Text = QSolver.Services.LocalizationService.Get("Common.OK");
                 StartSolvingQuestion();
             }
             else if (currentState == FormState.Solved)
@@ -317,7 +317,7 @@ namespace QSolver
                     if (editForm.ShowDialog() == DialogResult.OK && editForm.IsEdited)
                     {
                         questionText = editForm.EditedQuestionText;
-                        resultLabel.Text = "Soru düzenlendi.";
+                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.Edited");
                     }
                 }
 
@@ -328,7 +328,7 @@ namespace QSolver
             catch (Exception ex)
             {
                 this.Opacity = 1.0;
-                MessageBox.Show($"Düzenleme sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Result.EditError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -354,7 +354,7 @@ namespace QSolver
             catch (Exception ex)
             {
                 this.Opacity = 1.0;
-                MessageBox.Show($"Çözüm adımları gösterilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Result.StepsError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -367,7 +367,7 @@ namespace QSolver
                 // Özel JSON yanıtını kontrol et
                 if (questionText.Contains("\"question_not_found\""))
                 {
-                    questionText = "Soru bulunamadı.";
+                    questionText = QSolver.Services.LocalizationService.Get("Result.NotFound");
 
                     if (this.IsHandleCreated)
                     {
@@ -397,7 +397,7 @@ namespace QSolver
                 // Eğer yanıt boş veya hata içeriyorsa
                 if (string.IsNullOrEmpty(questionText) || questionText.StartsWith("Hata oluştu:") || questionText == "Yanıt işlenemedi.")
                 {
-                    questionText = "Görsel analiz edilemedi. Lütfen tekrar deneyin veya metni manuel olarak düzenleyin.";
+                    questionText = QSolver.Services.LocalizationService.Get("Result.AnalysisError");
                 }
 
                 // Analiz tamamlandığında UI'ı güncelle
@@ -426,7 +426,7 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = "Analiz sırasında hata oluştu";
+                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.AnalysisError");
                         resultLabel.Visible = true;
                         confirmButton.Visible = true;
                         editButton.Visible = true;
@@ -449,7 +449,7 @@ namespace QSolver
                 {
                     this.Invoke((MethodInvoker)delegate
                     {
-                        thinkingLabel.Text = "Soru Çözülüyor...";
+                        thinkingLabel.Text = QSolver.Services.LocalizationService.Get("Result.Solving") + "...";
                         thinkingLabel.Visible = true;
                         resultLabel.Visible = false;
                         confirmButton.Visible = false;
@@ -481,11 +481,11 @@ namespace QSolver
                         thinkingLabel.Visible = false;
 
                         // Cevap tek harf mi kontrol et
-                        string prefix = answerLetter.Length == 1 ? "Cevap: " : "Cevaplar: ";
+                        string prefix = answerLetter.Length == 1 ? QSolver.Services.LocalizationService.Get("Result.Answer", "") : QSolver.Services.LocalizationService.Get("Result.Answers", "");
                         resultLabel.Text = prefix + answerLetter;
 
                         resultLabel.Visible = true;
-                        confirmButton.Text = "Tamam";
+                        confirmButton.Text = QSolver.Services.LocalizationService.Get("Common.OK");
                         confirmButton.Visible = true;
                         solutionStepsButton.Visible = true;
 
@@ -500,7 +500,7 @@ namespace QSolver
             {
                 // Hata durumunda UI'ı güncelle
                 answerLetter = $"Hata oluştu: {ex.Message}";
-                solutionText = "Doğrudan çözüm sırasında hata oluştu.";
+                solutionText = QSolver.Services.LocalizationService.Get("Result.DirectSolveError");
 
                 if (this.IsHandleCreated)
                 {
@@ -508,9 +508,9 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = "Çözüm sırasında hata oluştu";
+                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.SolveError");
                         resultLabel.Visible = true;
-                        confirmButton.Text = "Tamam";
+                        confirmButton.Text = QSolver.Services.LocalizationService.Get("Common.OK");
                         confirmButton.Visible = true;
                         solutionStepsButton.Visible = true;
 
@@ -531,7 +531,7 @@ namespace QSolver
                 {
                     this.Invoke((MethodInvoker)delegate
                     {
-                        thinkingLabel.Text = "Soru Çözülüyor...";
+                        thinkingLabel.Text = QSolver.Services.LocalizationService.Get("Result.Solving") + "...";
                         thinkingLabel.Visible = true;
                         resultLabel.Visible = false;
                         confirmButton.Visible = false;
@@ -552,7 +552,7 @@ namespace QSolver
                     {
                         this.Invoke((MethodInvoker)delegate
                         {
-                            thinkingLabel.Text = "Geçersiz istek, tekrar deneniyor...";
+                            thinkingLabel.Text = QSolver.Services.LocalizationService.Get("Result.RetryMessage");
                         });
                     }
 
@@ -571,7 +571,7 @@ namespace QSolver
                             {
                                 animationTimer.Stop();
                                 thinkingLabel.Visible = false;
-                                resultLabel.Text = "Cevaplar: " + answerLetter;
+                                resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.Answers", "") + answerLetter;
                                 resultLabel.Visible = true;
                                 confirmButton.Visible = true;
                                 solutionStepsButton.Visible = true;
@@ -596,7 +596,7 @@ namespace QSolver
                         thinkingLabel.Visible = false;
 
                         // Cevap tek harf mi kontrol et
-                        string prefix = answerLetter.Length == 1 ? "Cevap: " : "Cevaplar: ";
+                        string prefix = answerLetter.Length == 1 ? QSolver.Services.LocalizationService.Get("Result.Answer", "") : QSolver.Services.LocalizationService.Get("Result.Answers", "");
                         resultLabel.Text = prefix + answerLetter;
 
                         resultLabel.Visible = true;
@@ -622,7 +622,7 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = "Çözüm sırasında hata oluştu";
+                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.SolveError");
                         resultLabel.Visible = true;
                         confirmButton.Visible = true;
 
@@ -657,7 +657,7 @@ namespace QSolver
         {
             if (e.CloseReason == CloseReason.UserClosing && currentState != FormState.Solved)
             {
-                MessageBox.Show("İşlem iptal edildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(QSolver.Services.LocalizationService.Get("App.Exit"), QSolver.Services.LocalizationService.Get("Common.Info"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             base.OnFormClosing(e);
         }
