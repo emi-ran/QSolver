@@ -18,11 +18,14 @@ namespace QSolver.Forms
         {
             Text = "Log Görüntüleyici";
             Size = new Size(800, 600);
+            MinimumSize = new Size(600, 400);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.Sizable;
             MinimizeBox = true;
             MaximizeBox = true;
             Padding = new Padding(20);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
 
             var mainPanel = new TableLayoutPanel
             {

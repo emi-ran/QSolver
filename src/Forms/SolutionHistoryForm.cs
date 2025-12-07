@@ -40,6 +40,8 @@ namespace QSolver.Forms
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(45, 45, 48);
             this.MinimumSize = new Size(800, 600);
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            this.AutoScaleDimensions = new SizeF(96F, 96F);
 
             // Form icon
             if (File.Exists(IconPath))

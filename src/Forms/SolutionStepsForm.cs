@@ -14,10 +14,13 @@ namespace QSolver
         {
             this.Text = "Çözüm Adımları";
             this.Size = new Size(800, 600);
+            this.MinimumSize = new Size(600, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.MaximizeBox = false;
+            this.MaximizeBox = true;
             this.MinimizeBox = false;
             this.TopMost = true; // Formu en üstte tut
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            this.AutoScaleDimensions = new SizeF(96F, 96F);
 
             // Form icon
             if (File.Exists(IconPath))
