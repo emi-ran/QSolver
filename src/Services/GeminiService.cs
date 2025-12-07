@@ -109,6 +109,25 @@ namespace QSolver
             };
         }
 
+        /// <summary>
+        /// Turbo Mode için minimal schema - sadece cevap ve başlık
+        /// </summary>
+        private static object GetTurboSchema()
+        {
+            return new
+            {
+                type = "object",
+                properties = new
+                {
+                    title = new { type = "string", description = "Sorunun kısa başlığı (max 30 karakter)" },
+                    solved = new { type = "boolean", description = "Çözüldü mü?" },
+                    answers = new { type = "string", description = "Cevap(lar) - 'A' veya 'A,B,C'" }
+                },
+                required = new[] { "title", "solved", "answers" },
+                propertyOrdering = new[] { "title", "solved", "answers" }
+            };
+        }
+
         public async Task<string> AnalyzeImage(string base64Image)
         {
             try
@@ -279,15 +298,15 @@ namespace QSolver
                                         {
                                             text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz ve JSON formatında yanıt ver.
 
-ÖNEMLİ KURALLAR:
-- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
-- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
-- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
-- explanation alanında çözümü markdown formatında adım adım açıkla
-- title alanına kısa bir başlık yaz (max 50 karakter)
+                                                ÖNEMLİ KURALLAR:
+                                                - Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
+                                                - Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
+                                                - Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
+                                                - explanation alanında çözümü markdown formatında adım adım açıkla
+                                                - title alanına kısa bir başlık yaz (max 50 karakter)
 
-Soru:
-" + questionText
+                                                Soru:
+                                                " + questionText
                                         }
                                     }
                                 }
@@ -401,7 +420,7 @@ Soru:
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
-                        // API isteği için JSON hazırla (Structured Output ile)
+                        // API isteği için JSON hazırla (Turbo Mode - Minimal Schema)
                         var request = new GeminiRequest
                         {
                             contents = new[]
@@ -412,14 +431,10 @@ Soru:
                                     {
                                         new Part
                                         {
-                                            text = @"Sen bir soru çözme yapay zekasısın. Bu görseldeki soruları analiz edip adım adım çöz ve JSON formatında yanıt ver.
-
-ÖNEMLİ KURALLAR:
-- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
-- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
-- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
-- explanation alanında çözümü markdown formatında adım adım açıkla
-- title alanına kısa bir başlık yaz (max 50 karakter, örn: 'Matematik: Türev')"
+                                            text = @"Bu görseldeki soruyu çöz. Sadece doğru cevabı ver.
+- Tek soru: 'A' gibi şık harfi
+- Çoklu soru: 'A,B,C' gibi virgülle ayır (soru numarasına göre sırala)
+- title: kısa başlık (max 30 karakter)"
                                         },
                                         new Part
                                         {
@@ -435,7 +450,7 @@ Soru:
                             generationConfig = new GenerationConfig
                             {
                                 responseMimeType = "application/json",
-                                responseSchema = GetSolutionSchema()
+                                responseSchema = GetTurboSchema()
                             }
                         };
 
@@ -463,9 +478,9 @@ Soru:
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
-                        LogHelper.LogDebug($"Gemini Direct Solver yanıtı: {jsonResponse}");
+                        LogHelper.LogDebug($"Gemini Turbo yanıtı: {jsonResponse}");
 
-                        // Structured output yanıtını işle
+                        // Turbo structured output yanıtını işle
                         using JsonDocument document = JsonDocument.Parse(jsonResponse);
                         var root = document.RootElement;
 
@@ -477,18 +492,17 @@ Soru:
                             parts[0].TryGetProperty("text", out var textElement))
                         {
                             string structuredJson = textElement.GetString() ?? "{}";
-                            var solutionResult = JsonSerializer.Deserialize<SolutionResponse>(structuredJson);
+                            var turboResult = JsonSerializer.Deserialize<TurboResponse>(structuredJson);
 
-                            if (solutionResult != null)
+                            if (turboResult != null)
                             {
-                                string fullResponse = solutionResult.explanation;
-                                string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
-                                string title = !string.IsNullOrEmpty(solutionResult.title)
-                                    ? (solutionResult.title.Length > 50 ? solutionResult.title.Substring(0, 47) + "..." : solutionResult.title)
-                                    : $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
-                                LogHelper.LogInfo($"Doğrudan soru çözüm sonucu: {fullResponse}");
-                                LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                                LogHelper.LogInfo($"Çıkarılan başlık: {title}");
+                                // Turbo modda explanation yok, sadece "Turbo Mode" yazılır
+                                string fullResponse = "Turbo Mode - Hızlı çözüm";
+                                string answer = turboResult.solved ? turboResult.answers.ToUpper() : "Çözülemedi";
+                                string title = !string.IsNullOrEmpty(turboResult.title)
+                                    ? (turboResult.title.Length > 50 ? turboResult.title.Substring(0, 47) + "..." : turboResult.title)
+                                    : $"Turbo - {DateTime.Now:HH:mm}";
+                                LogHelper.LogInfo($"Turbo çözüm: cevap={answer}, başlık={title}");
                                 return (fullResponse, answer, title);
                             }
                         }

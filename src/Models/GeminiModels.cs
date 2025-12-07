@@ -19,4 +19,14 @@ namespace QSolver.Models
         public bool solved { get; set; } = false;
         public string answers { get; set; } = "";
     }
+
+    /// <summary>
+    /// Turbo Mode için minimal yanıt - sadece cevap ve başlık
+    /// </summary>
+    public class TurboResponse
+    {
+        public string title { get; set; } = "";
+        public bool solved { get; set; } = false;
+        public string answers { get; set; } = "";
+    }
 }

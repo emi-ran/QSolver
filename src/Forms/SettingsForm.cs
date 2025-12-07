@@ -119,7 +119,7 @@ namespace QSolver.Forms
                 // Metni çiz - TextRenderer kullanarak daha iyi sarmalama
                 Rectangle textRect = new Rectangle(28, 3, turboModeCheckBox.Width - 30, turboModeCheckBox.Height - 6);
                 TextRenderer.DrawText(e.Graphics,
-                    "Turbo Mod (Soru düzenleme adımını atla, direk çöz)",
+                    "Turbo Mod (Sadece cevap, çözüm adımları yok - Hızlı)",
                     turboModeCheckBox.Font,
                     textRect,
                     Color.FromArgb(241, 241, 241),
