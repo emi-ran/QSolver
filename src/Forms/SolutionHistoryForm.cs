@@ -110,12 +110,23 @@ namespace QSolver.Forms
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left
             };
 
-            // ListView columns
-            historyListView.Columns.Add("Ders", 80);
-            historyListView.Columns.Add("Başlık", 170);
-            historyListView.Columns.Add("Cevap", 60);
-            historyListView.Columns.Add("Tarih", 100);
-            historyListView.Columns.Add("Model", 80);
+            // ListView columns - son sütun kalan alanı doldursun (-2 = fill)
+            historyListView.Columns.Add("Ders", 70);
+            historyListView.Columns.Add("Başlık", 180);
+            historyListView.Columns.Add("Cevap", 50);
+            historyListView.Columns.Add("Tarih", 110);
+            historyListView.Columns.Add("Model", -2); // Kalan alanı doldur
+
+            // Çift tıklamada otomatik genişleme olmasın
+            historyListView.ColumnWidthChanging += (s, e) =>
+            {
+                // Çift tıklama ile genişletmeyi engelle
+                if (e.ColumnIndex == historyListView.Columns.Count - 1)
+                {
+                    e.Cancel = true;
+                    e.NewWidth = historyListView.Columns[e.ColumnIndex].Width;
+                }
+            };
 
             historyListView.SelectedIndexChanged += HistoryListView_SelectedIndexChanged;
 

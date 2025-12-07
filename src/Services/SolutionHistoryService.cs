@@ -151,13 +151,41 @@ namespace QSolver
             if (string.IsNullOrEmpty(searchTerm))
                 return GetHistory();
 
-            var lowerSearchTerm = searchTerm.ToLower();
+            // Arananı normalize et (küçük harf, noktalama işaretleri kaldır)
+            var normalizedSearchTerm = NormalizeForSearch(searchTerm);
+
             return historyItems
-                .Where(h => h.QuestionTitle.ToLower().Contains(lowerSearchTerm) ||
-                           h.QuestionText.ToLower().Contains(lowerSearchTerm) ||
-                           h.Answer.ToLower().Contains(lowerSearchTerm))
+                .Where(h => NormalizeForSearch(h.Lecture).Contains(normalizedSearchTerm) ||
+                           NormalizeForSearch(h.QuestionTitle).Contains(normalizedSearchTerm) ||
+                           NormalizeForSearch(h.QuestionText).Contains(normalizedSearchTerm) ||
+                           NormalizeForSearch(h.Answer).Contains(normalizedSearchTerm))
                 .OrderByDescending(h => h.Timestamp)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Metin araması için normalleştirme - noktalama işaretlerini kaldırır, küçük harfe çevirir
+        /// </summary>
+        private static string NormalizeForSearch(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return "";
+
+            // Küçük harfe çevir
+            text = text.ToLower();
+
+            // Türkçe karakterleri koru, sadece noktalama işaretlerini kaldır
+            var result = new System.Text.StringBuilder();
+            foreach (char c in text)
+            {
+                // Harf, rakam veya boşluk ise ekle
+                if (char.IsLetterOrDigit(c) || char.IsWhiteSpace(c))
+                {
+                    result.Append(c);
+                }
+            }
+
+            return result.ToString();
         }
 
         public static void DeleteHistoryItem(string id)
