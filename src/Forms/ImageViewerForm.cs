@@ -1,11 +1,13 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace QSolver.Forms
 {
     public partial class ImageViewerForm : Form
     {
+        private static readonly string IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "qsolver.ico");
         private PictureBox imagePictureBox = null!;
         private Button closeButton = null!;
         private Button zoomInButton = null!;
@@ -37,6 +39,12 @@ namespace QSolver.Forms
             this.BackColor = Color.FromArgb(45, 45, 48);
             this.KeyPreview = true;
             this.WindowState = FormWindowState.Maximized;
+
+            // Form icon
+            if (File.Exists(IconPath))
+            {
+                this.Icon = new Icon(IconPath);
+            }
 
             // Image panel (scrollable container)
             imagePanel = new Panel
@@ -157,7 +165,16 @@ namespace QSolver.Forms
             // Resize event
             this.Resize += ImageViewerForm_Resize;
 
+            // Form shown event - görseli doğru ortalamak için
+            this.Shown += ImageViewerForm_Shown;
+
             this.ResumeLayout(false);
+        }
+
+        private void ImageViewerForm_Shown(object? sender, EventArgs e)
+        {
+            // Form tamamen açıldıktan sonra görseli ortala
+            UpdateImageSize();
         }
 
         private void DisplayImage()
@@ -178,15 +195,15 @@ namespace QSolver.Forms
             imagePictureBox.Size = new Size(newWidth, newHeight);
             imagePictureBox.SizeMode = PictureBoxSizeMode.Zoom;
 
-            // Center the image if it's smaller than the panel
-            if (newWidth < imagePanel.ClientSize.Width)
-            {
-                imagePictureBox.Location = new Point((imagePanel.ClientSize.Width - newWidth) / 2, imagePictureBox.Location.Y);
-            }
-            if (newHeight < imagePanel.ClientSize.Height)
-            {
-                imagePictureBox.Location = new Point(imagePictureBox.Location.X, (imagePanel.ClientSize.Height - newHeight) / 2);
-            }
+            // Center the image in the panel
+            int x = (newWidth < imagePanel.ClientSize.Width)
+                ? (imagePanel.ClientSize.Width - newWidth) / 2
+                : 0;
+            int y = (newHeight < imagePanel.ClientSize.Height)
+                ? (imagePanel.ClientSize.Height - newHeight) / 2
+                : 0;
+
+            imagePictureBox.Location = new Point(x, y);
 
             zoomLabel.Text = $"{(int)(zoomFactor * 100)}%";
         }
@@ -232,8 +249,7 @@ namespace QSolver.Forms
         private void ResetZoom()
         {
             zoomFactor = 1.0f;
-            UpdateImageSize();
-            imagePictureBox.Location = new Point(0, 0);
+            UpdateImageSize(); // This will also center the image
         }
 
         private void ImagePictureBox_MouseDown(object? sender, MouseEventArgs e)

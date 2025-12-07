@@ -8,6 +8,7 @@ namespace QSolver.Forms
 {
     public partial class SolutionHistoryForm : Form
     {
+        private static readonly string IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "qsolver.ico");
         private ListView historyListView = null!;
         private Panel detailPanel = null!;
         private PictureBox screenshotPictureBox = null!;
@@ -39,6 +40,12 @@ namespace QSolver.Forms
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(45, 45, 48);
             this.MinimumSize = new Size(800, 600);
+
+            // Form icon
+            if (File.Exists(IconPath))
+            {
+                this.Icon = new Icon(IconPath);
+            }
 
             // Search box
             var searchLabel = new Label
