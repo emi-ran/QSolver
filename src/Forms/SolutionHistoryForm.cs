@@ -87,7 +87,8 @@ namespace QSolver.Forms
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9F),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             clearAllButton.FlatAppearance.BorderSize = 0;
             clearAllButton.Click += ClearAllButton_Click;
@@ -103,7 +104,8 @@ namespace QSolver.Forms
                 BackColor = Color.FromArgb(62, 62, 66),
                 ForeColor = Color.FromArgb(241, 241, 241),
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9F),
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left
             };
 
             // ListView columns
@@ -120,7 +122,8 @@ namespace QSolver.Forms
                 Location = new Point(540, 60),
                 Size = new Size(440, 580),
                 BackColor = Color.FromArgb(55, 55, 58),
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
             // Screenshot
@@ -146,7 +149,8 @@ namespace QSolver.Forms
                 Size = new Size(210, 60),
                 ForeColor = Color.FromArgb(241, 241, 241),
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                Text = "Soru seçin..."
+                Text = "Soru seçin...",
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             // Answer label
@@ -156,7 +160,8 @@ namespace QSolver.Forms
                 Size = new Size(210, 30),
                 ForeColor = Color.FromArgb(46, 213, 115),
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                Text = ""
+                Text = "",
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             // Question text
@@ -169,8 +174,11 @@ namespace QSolver.Forms
                 BorderStyle = BorderStyle.FixedSingle,
                 Font = new Font("Segoe UI", 9F),
                 Multiline = true,
+                WordWrap = true,
+                AcceptsReturn = true,
                 ScrollBars = ScrollBars.Vertical,
-                ReadOnly = true
+                ReadOnly = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
             // View steps button
@@ -183,7 +191,8 @@ namespace QSolver.Forms
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F),
-                Enabled = false
+                Enabled = false,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
             };
             viewStepsButton.FlatAppearance.BorderSize = 0;
             viewStepsButton.Click += ViewStepsButton_Click;
@@ -198,7 +207,8 @@ namespace QSolver.Forms
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F),
-                Enabled = false
+                Enabled = false,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
             };
             deleteButton.FlatAppearance.BorderSize = 0;
             deleteButton.Click += DeleteButton_Click;
@@ -280,7 +290,14 @@ namespace QSolver.Forms
 
             questionTitleLabel.Text = selectedItem.QuestionTitle;
             answerLabel.Text = $"Cevap: {selectedItem.Answer}";
-            questionTextBox.Text = selectedItem.QuestionText;
+
+            // Escape edilmiş newline karakterlerini gerçek newline'a çevir
+            var questionText = selectedItem.QuestionText;
+            if (questionText.Contains("\\n"))
+            {
+                questionText = questionText.Replace("\\n", Environment.NewLine);
+            }
+            questionTextBox.Text = questionText;
 
             // Mevcut resmi temizle
             if (screenshotPictureBox.Image != null)

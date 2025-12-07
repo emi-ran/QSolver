@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -7,6 +8,8 @@ namespace QSolver
 {
     public class SolutionStepsForm : Form
     {
+        private static readonly string IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "qsolver.ico");
+
         public SolutionStepsForm(string solutionText)
         {
             this.Text = "Çözüm Adımları";
@@ -15,6 +18,12 @@ namespace QSolver
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.TopMost = true; // Formu en üstte tut
+
+            // Form icon
+            if (File.Exists(IconPath))
+            {
+                this.Icon = new Icon(IconPath);
+            }
 
             // JSON kısmını kaldır
             int jsonIndex = solutionText.LastIndexOf("json{");

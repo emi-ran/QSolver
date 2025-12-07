@@ -7,12 +7,25 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Linq;
 using QSolver.Helpers;
+using QSolver.Models;
 
 namespace QSolver
 {
     public class GeminiRequest
     {
         public required Content[] contents { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public GenerationConfig? generationConfig { get; set; }
+    }
+
+    public class GenerationConfig
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? responseMimeType { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? responseSchema { get; set; }
     }
 
     public class Content
@@ -58,6 +71,44 @@ namespace QSolver
             }
         }
 
+        /// <summary>
+        /// OCR yanıtı için JSON schema döndürür
+        /// </summary>
+        private static object GetOcrSchema()
+        {
+            return new
+            {
+                type = "object",
+                properties = new
+                {
+                    text = new { type = "string", description = "Görselde tespit edilen metin. Her satırı newline (\\n) karakteri ile ayır. Şıklar ve paragraflar ayrı satırlarda olmalı. Metin yoksa boş string." },
+                    hasText = new { type = "boolean", description = "Görselde metin var mı?" }
+                },
+                required = new[] { "text", "hasText" },
+                propertyOrdering = new[] { "text", "hasText" }
+            };
+        }
+
+        /// <summary>
+        /// Soru çözümü yanıtı için JSON schema döndürür
+        /// </summary>
+        private static object GetSolutionSchema()
+        {
+            return new
+            {
+                type = "object",
+                properties = new
+                {
+                    title = new { type = "string", description = "Sorunun kısa başlığı (max 50 karakter), örn: 'Matematik: Türev', 'Fizik: Hareket'" },
+                    explanation = new { type = "string", description = "Çözümün markdown formatında adım adım açıklaması" },
+                    solved = new { type = "boolean", description = "Sorunun başarıyla çözülüp çözülemediği" },
+                    answers = new { type = "string", description = "Cevap(lar) - tek soru için 'A', çoklu sorular için soru numarasına göre sıralı 'A,B,C' formatında" }
+                },
+                required = new[] { "title", "explanation", "solved", "answers" },
+                propertyOrdering = new[] { "title", "explanation", "solved", "answers" }
+            };
+        }
+
         public async Task<string> AnalyzeImage(string base64Image)
         {
             try
@@ -83,7 +134,7 @@ namespace QSolver
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
-                        // API isteği için JSON hazırla
+                        // API isteği için JSON hazırla (Structured Output ile)
                         var request = new GeminiRequest
                         {
                             contents = new[]
@@ -92,7 +143,7 @@ namespace QSolver
                                 {
                                     parts = new[]
                                     {
-                                        new Part { text = "Bu görselde ne yazıyor? Lütfen sadece görseldeki metni aynen yaz. Görselde yazanlar dışında hiçbir ek açıklama ekleme. Eğer görselde hiçbir yazı yoksa sadece 'NO_TEXT_FOUND' yaz." },
+                                        new Part { text = "Bu görseldeki metni oku. Her satırı ve şıkkı ayrı satırda yaz (newline karakteri ile ayır). Görseldeki orijinal satır düzenini koru. Ek açıklama ekleme." },
                                         new Part
                                         {
                                             inline_data = new InlineData
@@ -103,6 +154,11 @@ namespace QSolver
                                         }
                                     }
                                 }
+                            },
+                            generationConfig = new GenerationConfig
+                            {
+                                responseMimeType = "application/json",
+                                responseSchema = GetOcrSchema()
                             }
                         };
 
@@ -132,7 +188,7 @@ namespace QSolver
                         var jsonResponse = await response.Content.ReadAsStringAsync();
                         LogHelper.LogDebug($"Gemini OCR yanıtı: {jsonResponse}");
 
-                        // Yanıtı işle
+                        // Structured output yanıtını işle
                         using JsonDocument document = JsonDocument.Parse(jsonResponse);
                         var root = document.RootElement;
 
@@ -143,9 +199,19 @@ namespace QSolver
                             parts.GetArrayLength() > 0 &&
                             parts[0].TryGetProperty("text", out var textElement))
                         {
-                            string result = textElement.GetString() ?? "Yanıt alınamadı.";
-                            LogHelper.LogInfo($"Görsel analiz sonucu: {result}");
-                            return result;
+                            string structuredJson = textElement.GetString() ?? "{}";
+                            var ocrResult = JsonSerializer.Deserialize<OcrResponse>(structuredJson);
+
+                            if (ocrResult != null && ocrResult.hasText)
+                            {
+                                LogHelper.LogInfo($"Görsel analiz sonucu: {ocrResult.text}");
+                                return ocrResult.text;
+                            }
+                            else
+                            {
+                                LogHelper.LogInfo("Görselde metin bulunamadı");
+                                return "NO_TEXT_FOUND";
+                            }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
@@ -200,7 +266,7 @@ namespace QSolver
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
-                        // API isteği için JSON hazırla
+                        // API isteği için JSON hazırla (Structured Output ile)
                         var request = new GeminiRequest
                         {
                             contents = new[]
@@ -211,34 +277,25 @@ namespace QSolver
                                     {
                                         new Part
                                         {
-                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz. 
-Çözümün sonunda hangi şıkkın doğru olduğunu belirt. 
+                                            text = @"Sen bir soru çözme yapay zekasısın. Aşağıdaki soruyu analiz edip adım adım çöz ve JSON formatında yanıt ver.
 
-ÖNEMLİ: Eğer birden fazla soru numarası varsa (örneğin: ""43. Soru"", ""44. Soru"" gibi), bunları BİRDEN FAZLA SORU olarak değerlendir ve SADECE TEK BİR JSON formatında cevap ver.
-
-ÇOK ÖNEMLİ: Soruları çözdükten sonra, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE doğru sırala. Örneğin, sorular 44, 49, 45, 50 sırasıyla verilmişse, cevapları 44, 45, 49, 50 sırasıyla (yani küçükten büyüğe) ver. CEVAPLARI MUTLAKA SORU NUMARALARINA GÖRE SIRALA!
-
-Cevabını şu formatta bitir:
-- Tek bir soru için: { ""solved"":""true"", ""answers"":""X"" } formatını kullan (X yerine doğru şıkkı yaz)
-- Birden fazla soru için: { ""solved"":""true"", ""answers"":""X,Y,Z,..."" } formatını kullan (Her soru için doğru şıkkı virgülle ayırarak yaz, ASLA her soru için ayrı JSON formatı verme!)
-- Eğer çözemediysen: { ""solved"":""false"" }
-
-TEKRAR: Eğer metin içinde numaralı sorular varsa (örn: 44, 49, 45, 50), soruları çözdükten sonra CEVAPLARI SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE DOĞRU SIRALA ve tek bir JSON'da ver.
-Örnek: Sorular 44, 49, 45, 50 sırasıyla verilmiş olsun ve cevapları A, B, C, D olsun. Doğru sıralama şöyle olacaktır:
-44. soru: A
-45. soru: C
-49. soru: B
-50. soru: D
-
-Bu durumda JSON cevabın { ""solved"":""true"", ""answers"":""A,C,B,D"" } şeklinde olmalıdır. Yani cevaplar soru numaralarına göre sıralanmalıdır.
-
-Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
+ÖNEMLİ KURALLAR:
+- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
+- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
+- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
+- explanation alanında çözümü markdown formatında adım adım açıkla
+- title alanına kısa bir başlık yaz (max 50 karakter)
 
 Soru:
 " + questionText
                                         }
                                     }
                                 }
+                            },
+                            generationConfig = new GenerationConfig
+                            {
+                                responseMimeType = "application/json",
+                                responseSchema = GetSolutionSchema()
                             }
                         };
 
@@ -268,7 +325,7 @@ Soru:
                         var jsonResponse = await response.Content.ReadAsStringAsync();
                         LogHelper.LogDebug($"Gemini Solver yanıtı: {jsonResponse}");
 
-                        // Yanıtı işle
+                        // Structured output yanıtını işle
                         using JsonDocument document = JsonDocument.Parse(jsonResponse);
                         var root = document.RootElement;
 
@@ -279,11 +336,17 @@ Soru:
                             parts.GetArrayLength() > 0 &&
                             parts[0].TryGetProperty("text", out var textElement))
                         {
-                            string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
-                            string answer = ExtractAnswer(fullResponse);
-                            LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
-                            LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                            return (fullResponse, answer);
+                            string structuredJson = textElement.GetString() ?? "{}";
+                            var solutionResult = JsonSerializer.Deserialize<SolutionResponse>(structuredJson);
+
+                            if (solutionResult != null)
+                            {
+                                string fullResponse = solutionResult.explanation;
+                                string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
+                                LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
+                                LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
+                                return (fullResponse, answer);
+                            }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
@@ -338,7 +401,7 @@ Soru:
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
-                        // API isteği için JSON hazırla
+                        // API isteği için JSON hazırla (Structured Output ile)
                         var request = new GeminiRequest
                         {
                             contents = new[]
@@ -349,30 +412,14 @@ Soru:
                                     {
                                         new Part
                                         {
-                                            text = @"Sen bir soru çözme yapay zekasısın. Bu görseldeki soruları analiz edip adım adım çöz. 
-Çözümün sonunda hangi şıkkın doğru olduğunu belirt ve soru için bir başlık üret.
+                                            text = @"Sen bir soru çözme yapay zekasısın. Bu görseldeki soruları analiz edip adım adım çöz ve JSON formatında yanıt ver.
 
-ÖNEMLİ: Eğer birden fazla soru numarası varsa (örneğin: ""43. Soru"", ""44. Soru"" gibi), bunları BİRDEN FAZLA SORU olarak değerlendir ve SADECE TEK BİR JSON formatında cevap ver.
-
-ÇOK ÖNEMLİ: Soruları çözdükten sonra, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE doğru sırala. Örneğin, sorular 44, 49, 45, 50 sırasıyla verilmişse, cevapları 44, 45, 49, 50 sırasıyla (yani küçükten büyüğe) ver. CEVAPLARI MUTLAKA SORU NUMARALARINA GÖRE SIRALA!
-
-Cevabını şu formatta bitir:
-- Tek bir soru için: { ""title"":""Kısa başlık (max 50 kar)"", ""solved"":""true"", ""answers"":""X"" }
-- Birden fazla soru için: { ""title"":""Kısa başlık (max 50 kar)"", ""solved"":""true"", ""answers"":""X,Y,Z,..."" }
-- Eğer çözemediysen: { ""title"":""Çözülemeyen Soru"", ""solved"":""false"" }
-
-Başlık soru konusunu kısa ve açık şekilde belirtsin (örn: ""Matematik: Türev"", ""Fizik: Hareket"", ""Türkçe: Dil Bilgisi"" gibi).
-
-TEKRAR: Eğer görselde numaralı sorular varsa (örn: 44, 49, 45, 50), soruları çözdükten sonra CEVAPLARI SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE DOĞRU SIRALA ve tek bir JSON'da ver.
-Örnek: Sorular 44, 49, 45, 50 sırasıyla verilmiş olsun ve cevapları A, B, C, D olsun. Doğru sıralama şöyle olacaktır:
-44. soru: A
-45. soru: C
-49. soru: B
-50. soru: D
-
-Bu durumda JSON cevabın { ""solved"":""true"", ""answers"":""A,C,B,D"" } şeklinde olmalıdır. Yani cevaplar soru numaralarına göre sıralanmalıdır.
-
-Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil."
+ÖNEMLİ KURALLAR:
+- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala
+- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')
+- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')
+- explanation alanında çözümü markdown formatında adım adım açıkla
+- title alanına kısa bir başlık yaz (max 50 karakter, örn: 'Matematik: Türev')"
                                         },
                                         new Part
                                         {
@@ -384,6 +431,11 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
                                         }
                                     }
                                 }
+                            },
+                            generationConfig = new GenerationConfig
+                            {
+                                responseMimeType = "application/json",
+                                responseSchema = GetSolutionSchema()
                             }
                         };
 
@@ -413,7 +465,7 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
                         var jsonResponse = await response.Content.ReadAsStringAsync();
                         LogHelper.LogDebug($"Gemini Direct Solver yanıtı: {jsonResponse}");
 
-                        // Yanıtı işle
+                        // Structured output yanıtını işle
                         using JsonDocument document = JsonDocument.Parse(jsonResponse);
                         var root = document.RootElement;
 
@@ -424,13 +476,21 @@ Tek soru bile olsa her zaman ""answers"" anahtarını kullan, ""answer"" değil.
                             parts.GetArrayLength() > 0 &&
                             parts[0].TryGetProperty("text", out var textElement))
                         {
-                            string fullResponse = textElement.GetString() ?? "Yanıt alınamadı.";
-                            string answer = ExtractAnswer(fullResponse);
-                            string title = ExtractTitle(fullResponse);
-                            LogHelper.LogInfo($"Doğrudan soru çözüm sonucu: {fullResponse}");
-                            LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                            LogHelper.LogInfo($"Çıkarılan başlık: {title}");
-                            return (fullResponse, answer, title);
+                            string structuredJson = textElement.GetString() ?? "{}";
+                            var solutionResult = JsonSerializer.Deserialize<SolutionResponse>(structuredJson);
+
+                            if (solutionResult != null)
+                            {
+                                string fullResponse = solutionResult.explanation;
+                                string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
+                                string title = !string.IsNullOrEmpty(solutionResult.title)
+                                    ? (solutionResult.title.Length > 50 ? solutionResult.title.Substring(0, 47) + "..." : solutionResult.title)
+                                    : $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+                                LogHelper.LogInfo($"Doğrudan soru çözüm sonucu: {fullResponse}");
+                                LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
+                                LogHelper.LogInfo($"Çıkarılan başlık: {title}");
+                                return (fullResponse, answer, title);
+                            }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
