@@ -262,8 +262,7 @@ namespace QSolver.Forms
                 if (languageChanged)
                 {
                     LocalizationService.SetLanguage(selectedLang.Code);
-                    Application.Restart();
-                    Environment.Exit(0);
+                    Program.RestartApplication();
                 }
                 else
                 {

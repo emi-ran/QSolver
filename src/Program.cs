@@ -24,6 +24,9 @@ namespace QSolver
         // Statik gemini servisi referansı
         private static GeminiService? staticGeminiService;
 
+        // Mutex referansı (restart için)
+        private static Mutex? _instanceMutex;
+
         public Program()
         {
             // Localization servisini başlat
@@ -67,6 +70,24 @@ namespace QSolver
                 staticGeminiService = new GeminiService(apiKey);
             }
             return staticGeminiService;
+        }
+
+        /// <summary>
+        /// Uygulamayı yeniden başlatır (mutex'i serbest bırakarak)
+        /// </summary>
+        public static void RestartApplication()
+        {
+            // Mutex'i serbest bırak
+            if (_instanceMutex != null)
+            {
+                _instanceMutex.ReleaseMutex();
+                _instanceMutex.Dispose();
+                _instanceMutex = null;
+            }
+
+            // Uygulamayı yeniden başlat
+            Application.Restart();
+            Environment.Exit(0);
         }
 
         /// <summary>
@@ -382,7 +403,7 @@ namespace QSolver
 
             // Mutex ile çoklu uygulama açılmasını engelle
             const string mutexName = "QSolver_SingleInstance_Mutex";
-            using var mutex = new Mutex(true, mutexName, out bool createdNew);
+            _instanceMutex = new Mutex(true, mutexName, out bool createdNew);
 
             if (!createdNew)
             {

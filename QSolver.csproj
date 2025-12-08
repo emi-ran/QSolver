@@ -8,9 +8,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsFormsHighDpiAutoResizing>true</EnableWindowsFormsHighDpiAutoResizing>
     <ApplicationIcon>Resources\qsolver.ico</ApplicationIcon>
-    <Version>1.5.4</Version>
-    <AssemblyVersion>1.5.4</AssemblyVersion>
-    <FileVersion>1.5.4</FileVersion>
+    <Version>1.5.5</Version>
+    <AssemblyVersion>1.5.5</AssemblyVersion>
+    <FileVersion>1.5.5</FileVersion>
     <Company>QSolver</Company>
     <Product>QSolver</Product>
     <Description>AI-powered question solver from screenshots</Description>
