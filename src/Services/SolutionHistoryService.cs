@@ -12,7 +12,9 @@ namespace QSolver
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; set; } = DateTime.Now;
-        public string Lecture { get; set; } = string.Empty;
+        public string Lecture { get; set; } = string.Empty; // Geriye uyumluluk için
+        public string LectureEn { get; set; } = string.Empty;
+        public string LectureTr { get; set; } = string.Empty;
         public string QuestionTitle { get; set; } = string.Empty;
         public string QuestionText { get; set; } = string.Empty;
         public string Answer { get; set; } = string.Empty;
@@ -20,6 +22,25 @@ namespace QSolver
         public string ScreenshotPath { get; set; } = string.Empty;
         public string UsedModel { get; set; } = string.Empty;
         public bool WasTurboMode { get; set; } = false;
+
+        /// <summary>
+        /// UI diline göre uygun ders adını döndürür
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string LocalizedLecture
+        {
+            get
+            {
+                if (QSolver.Services.LocalizationService.IsTurkish)
+                {
+                    return !string.IsNullOrEmpty(LectureTr) ? LectureTr : Lecture;
+                }
+                else
+                {
+                    return !string.IsNullOrEmpty(LectureEn) ? LectureEn : Lecture;
+                }
+            }
+        }
     }
 
     public class SolutionHistoryService
@@ -58,7 +79,7 @@ namespace QSolver
         }
 
         public static async Task AddSolutionToHistory(string questionText, string answer, string solutionSteps,
-            byte[] screenshotData, bool wasTurboMode, string lecture = "", string title = "")
+            byte[] screenshotData, bool wasTurboMode, string lectureEn = "", string lectureTr = "", string title = "")
         {
             try
             {
@@ -70,7 +91,9 @@ namespace QSolver
 
                 var historyItem = new SolutionHistoryItem
                 {
-                    Lecture = lecture,
+                    LectureEn = lectureEn,
+                    LectureTr = lectureTr,
+                    Lecture = QSolver.Services.LocalizationService.IsTurkish ? lectureTr : lectureEn, // UI dili için
                     QuestionTitle = title,
                     QuestionText = wasTurboMode ? "Turbo Mode - Doğrudan çözüm" : questionText,
                     Answer = answer,
@@ -99,7 +122,33 @@ namespace QSolver
         }
 
         /// <summary>
-        /// Geçmişteki tüm benzersiz dersleri döndürür
+        /// Geçmişteki tüm benzersiz İngilizce dersleri döndürür
+        /// </summary>
+        public static List<string> GetAvailableLecturesEn()
+        {
+            return historyItems
+                .Where(h => !string.IsNullOrEmpty(h.LectureEn))
+                .Select(h => h.LectureEn)
+                .Distinct()
+                .OrderBy(l => l)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Geçmişteki tüm benzersiz Türkçe dersleri döndürür
+        /// </summary>
+        public static List<string> GetAvailableLecturesTr()
+        {
+            return historyItems
+                .Where(h => !string.IsNullOrEmpty(h.LectureTr))
+                .Select(h => h.LectureTr)
+                .Distinct()
+                .OrderBy(l => l)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Geçmişteki tüm benzersiz dersleri döndürür (UI dili için)
         /// </summary>
         public static List<string> GetAvailableLectures()
         {

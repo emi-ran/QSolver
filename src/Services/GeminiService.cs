@@ -94,49 +94,59 @@ namespace QSolver
         /// <summary>
         /// Soru çözümü yanıtı için JSON schema döndürür
         /// </summary>
-        private static object GetSolutionSchema(List<string> availableLectures)
+        private static object GetSolutionSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
         {
-            string lectureDescription = availableLectures.Count > 0
-                ? $"{LocalizationService.Get("Result.Lecture", "")} [{string.Join(", ", availableLectures)}]. " + (LocalizationService.IsTurkish ? "Bu derslerden biri eşleşiyorsa onu yaz, yoksa yeni ders adı yaz." : "If matches write it, else write new lecture name.")
-                : LocalizationService.IsTurkish ? "Sorunun dersi (örn: Türkçe, Matematik, Fizik...)" : "Lecture of the question (e.g. Math, Physics...)";
+            string lectureEnDescription = availableLecturesEn.Count > 0
+                ? $"Lecture name in ENGLISH. Known: [{string.Join(", ", availableLecturesEn)}]. Use if matches, else write new."
+                : "Lecture name in ENGLISH (e.g. Mathematics, Physics, Chemistry, Biology, History, Geography, Turkish, English)";
+
+            string lectureTrDescription = availableLecturesTr.Count > 0
+                ? $"Ders adı TÜRKÇE. Bilinenler: [{string.Join(", ", availableLecturesTr)}]. Eşleşiyorsa kullan, yoksa yeni yaz."
+                : "Ders adı TÜRKÇE (örn: Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Türkçe, İngilizce)";
 
             return new
             {
                 type = "object",
                 properties = new
                 {
-                    lecture = new { type = "string", description = lectureDescription },
+                    lecture_en = new { type = "string", description = lectureEnDescription },
+                    lecture_tr = new { type = "string", description = lectureTrDescription },
                     title = new { type = "string", description = "Sorunun kısa başlığı (max 50 karakter), örn: 'Matematik: Türev', 'Fizik: Hareket'" },
                     explanation = new { type = "string", description = "Çözümün markdown formatında adım adım açıklaması" },
                     solved = new { type = "boolean", description = "Sorunun başarıyla çözülüp çözülemediği" },
                     answers = new { type = "string", description = "Cevap(lar) - tek soru için 'A', çoklu sorular için soru numarasına göre sıralı 'A,B,C' formatında" }
                 },
-                required = new[] { "lecture", "title", "explanation", "solved", "answers" },
-                propertyOrdering = new[] { "lecture", "title", "explanation", "solved", "answers" }
+                required = new[] { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" },
+                propertyOrdering = new[] { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" }
             };
         }
 
         /// <summary>
         /// Turbo Mode için minimal schema - sadece cevap ve başlık
         /// </summary>
-        private static object GetTurboSchema(List<string> availableLectures)
+        private static object GetTurboSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
         {
-            string lectureDescription = availableLectures.Count > 0
-                ? $"{LocalizationService.Get("Result.Lecture", "")} [{string.Join(", ", availableLectures)}]. " + (LocalizationService.IsTurkish ? "Eşleşiyorsa seç, yoksa yeni yaz." : "Select if matches, else write new.")
-                : LocalizationService.IsTurkish ? "Sorunun dersi (Türkçe, Matematik, Fizik vb.)" : "Lecture of the question (Math, Physics etc.)";
+            string lectureEnDescription = availableLecturesEn.Count > 0
+                ? $"Lecture in ENGLISH. Known: [{string.Join(", ", availableLecturesEn)}]. Select if matches, else write new."
+                : "Lecture in ENGLISH (Mathematics, Physics, Chemistry etc.)";
+
+            string lectureTrDescription = availableLecturesTr.Count > 0
+                ? $"Ders adı TÜRKÇE. [{string.Join(", ", availableLecturesTr)}]. Eşleşiyorsa seç, yoksa yeni yaz."
+                : "Ders adı TÜRKÇE (Matematik, Fizik, Kimya vb.)";
 
             return new
             {
                 type = "object",
                 properties = new
                 {
-                    lecture = new { type = "string", description = lectureDescription },
+                    lecture_en = new { type = "string", description = lectureEnDescription },
+                    lecture_tr = new { type = "string", description = lectureTrDescription },
                     title = new { type = "string", description = "Sorunun kısa başlığı (max 30 karakter)" },
                     solved = new { type = "boolean", description = "Çözüldü mü?" },
                     answers = new { type = "string", description = "Cevap(lar) - 'A' veya 'A,B,C'" }
                 },
-                required = new[] { "lecture", "title", "solved", "answers" },
-                propertyOrdering = new[] { "lecture", "title", "solved", "answers" }
+                required = new[] { "lecture_en", "lecture_tr", "title", "solved", "answers" },
+                propertyOrdering = new[] { "lecture_en", "lecture_tr", "title", "solved", "answers" }
             };
         }
 
@@ -272,7 +282,7 @@ namespace QSolver
             }
         }
 
-        public async Task<(string fullResponse, string answer, string lecture)> SolveQuestion(string questionText)
+        public async Task<(string fullResponse, string answer, string lectureEn, string lectureTr)> SolveQuestion(string questionText)
         {
             try
             {
@@ -280,8 +290,9 @@ namespace QSolver
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
 
-                // Mevcut dersleri al
-                var availableLectures = SolutionHistoryService.GetAvailableLectures();
+                // Mevcut dersleri al (her iki dilde)
+                var availableLecturesEn = SolutionHistoryService.GetAvailableLecturesEn();
+                var availableLecturesTr = SolutionHistoryService.GetAvailableLecturesTr();
 
                 // Tüm API anahtarlarını al
                 var allApiKeys = ApiKeyManager.GetAllApiKeys();
@@ -301,9 +312,11 @@ namespace QSolver
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
                         // Prompt'a mevcut dersleri ekle
-                        string lectureHint = availableLectures.Count > 0
-                            ? $"\n\nMevcut dersler: {string.Join(", ", availableLectures)}. Bu derslerden biri eşleşiyorsa onu kullan, yoksa yeni ders adı belirle."
-                            : "";
+                        string lectureHint = "";
+                        if (availableLecturesEn.Count > 0 || availableLecturesTr.Count > 0)
+                        {
+                            lectureHint = $"\n\nKnown lectures EN: [{string.Join(", ", availableLecturesEn)}]\nBilinen dersler TR: [{string.Join(", ", availableLecturesTr)}]";
+                        }
 
                         // API isteği için JSON hazırla (Structured Output ile)
                         var request = new GeminiRequest
@@ -324,7 +337,7 @@ namespace QSolver
                             generationConfig = new GenerationConfig
                             {
                                 responseMimeType = "application/json",
-                                responseSchema = GetSolutionSchema(availableLectures)
+                                responseSchema = GetSolutionSchema(availableLecturesEn, availableLecturesTr)
                             }
                         };
 
@@ -348,7 +361,7 @@ namespace QSolver
                                 continue;
                             }
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "");
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "", "");
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -372,16 +385,17 @@ namespace QSolver
                             {
                                 string fullResponse = solutionResult.explanation;
                                 string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
-                                string lecture = solutionResult.lecture ?? "";
+                                string lectureEn = solutionResult.lecture_en ?? "";
+                                string lectureTr = solutionResult.lecture_tr ?? "";
                                 LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
                                 LogHelper.LogInfo($"Çıkarılan cevap: {answer}");
-                                LogHelper.LogInfo($"Ders: {lecture}");
-                                return (fullResponse, answer, lecture);
+                                LogHelper.LogInfo($"Ders EN: {lectureEn}, TR: {lectureTr}");
+                                return (fullResponse, answer, lectureEn, lectureTr);
                             }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata", "");
+                        return ("Yanıt işlenemedi.", "Hata", "", "");
                     }
                     catch (Exception ex)
                     {
@@ -407,7 +421,7 @@ namespace QSolver
             }
         }
 
-        public async Task<(string fullResponse, string answer, string title, string lecture)> SolveQuestionDirectly(string base64Image)
+        public async Task<(string fullResponse, string answer, string title, string lectureEn, string lectureTr)> SolveQuestionDirectly(string base64Image)
         {
             try
             {
@@ -415,8 +429,9 @@ namespace QSolver
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
 
-                // Mevcut dersleri al
-                var availableLectures = SolutionHistoryService.GetAvailableLectures();
+                // Mevcut dersleri al (her iki dilde)
+                var availableLecturesEn = SolutionHistoryService.GetAvailableLecturesEn();
+                var availableLecturesTr = SolutionHistoryService.GetAvailableLecturesTr();
 
                 // Tüm API anahtarlarını al
                 var allApiKeys = ApiKeyManager.GetAllApiKeys();
@@ -436,9 +451,15 @@ namespace QSolver
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
                         // Prompt'a mevcut dersleri ekle
-                        string lectureHint = availableLectures.Count > 0
-                            ? $"\n- lecture: ders adı. Mevcut: [{string.Join(", ", availableLectures)}]. Eşleşiyorsa seç, yoksa yeni yaz."
-                            : "\n- lecture: ders adı (Türkçe, Matematik, Fizik vb.)";
+                        string lectureHint = "";
+                        if (availableLecturesEn.Count > 0 || availableLecturesTr.Count > 0)
+                        {
+                            lectureHint = $"\n- lecture_en: EN [{string.Join(", ", availableLecturesEn)}]\n- lecture_tr: TR [{string.Join(", ", availableLecturesTr)}]";
+                        }
+                        else
+                        {
+                            lectureHint = "\n- lecture_en: Lecture in English (Mathematics, Physics etc.)\n- lecture_tr: Ders adı Türkçe (Matematik, Fizik vb.)";
+                        }
 
                         // API isteği için JSON hazırla (Turbo Mode - Minimal Schema)
                         var request = new GeminiRequest
@@ -467,7 +488,7 @@ namespace QSolver
                             generationConfig = new GenerationConfig
                             {
                                 responseMimeType = "application/json",
-                                responseSchema = GetTurboSchema(availableLectures)
+                                responseSchema = GetTurboSchema(availableLecturesEn, availableLecturesTr)
                             }
                         };
 
@@ -491,7 +512,7 @@ namespace QSolver
                                 continue;
                             }
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası", "");
+                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası", "", "");
                         }
 
                         var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -519,14 +540,15 @@ namespace QSolver
                                 string title = !string.IsNullOrEmpty(turboResult.title)
                                     ? (turboResult.title.Length > 50 ? turboResult.title.Substring(0, 47) + "..." : turboResult.title)
                                     : $"Turbo - {DateTime.Now:HH:mm}";
-                                string lecture = turboResult.lecture ?? "";
-                                LogHelper.LogInfo($"Turbo çözüm: cevap={answer}, başlık={title}, ders={lecture}");
-                                return (fullResponse, answer, title, lecture);
+                                string lectureEn = turboResult.lecture_en ?? "";
+                                string lectureTr = turboResult.lecture_tr ?? "";
+                                LogHelper.LogInfo($"Turbo çözüm: cevap={answer}, başlık={title}, ders EN={lectureEn}, TR={lectureTr}");
+                                return (fullResponse, answer, title, lectureEn, lectureTr);
                             }
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru", "");
+                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru", "", "");
                     }
                     catch (Exception ex)
                     {

@@ -242,7 +242,7 @@ namespace QSolver.Forms
 
             foreach (var item in history)
             {
-                var listItem = new ListViewItem(item.Lecture);
+                var listItem = new ListViewItem(item.LocalizedLecture);
                 listItem.SubItems.Add(item.QuestionTitle);
                 listItem.SubItems.Add(item.Answer);
                 listItem.SubItems.Add(item.Timestamp.ToString("dd.MM.yyyy HH:mm"));
@@ -262,7 +262,7 @@ namespace QSolver.Forms
 
             foreach (var item in searchResults)
             {
-                var listItem = new ListViewItem(item.Lecture);
+                var listItem = new ListViewItem(item.LocalizedLecture);
                 listItem.SubItems.Add(item.QuestionTitle);
                 listItem.SubItems.Add(item.Answer);
                 listItem.SubItems.Add(item.Timestamp.ToString("dd.MM.yyyy HH:mm"));
@@ -294,8 +294,8 @@ namespace QSolver.Forms
             if (selectedItem == null) return;
 
             // Başlıkta ders bilgisi varsa göster
-            string titleWithLecture = !string.IsNullOrEmpty(selectedItem.Lecture)
-                ? $"[{selectedItem.Lecture}] {selectedItem.QuestionTitle}"
+            string titleWithLecture = !string.IsNullOrEmpty(selectedItem.LocalizedLecture)
+                ? $"[{selectedItem.LocalizedLecture}] {selectedItem.QuestionTitle}"
                 : selectedItem.QuestionTitle;
             questionTitleLabel.Text = titleWithLecture;
             answerLabel.Text = (selectedItem.Answer.Length == 1
