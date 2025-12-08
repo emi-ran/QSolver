@@ -3,50 +3,14 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Linq;
+using System.Collections.Generic;
 using QSolver.Helpers;
 using QSolver.Models;
-
 using QSolver.Services;
 
 namespace QSolver
 {
-    public class GeminiRequest
-    {
-        public required Content[] contents { get; set; }
-
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public GenerationConfig? generationConfig { get; set; }
-    }
-
-    public class GenerationConfig
-    {
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? responseMimeType { get; set; }
-
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public object? responseSchema { get; set; }
-    }
-
-    public class Content
-    {
-        public required Part[] parts { get; set; }
-    }
-
-    public class Part
-    {
-        public string? text { get; set; }
-        public InlineData? inline_data { get; set; }
-    }
-
-    public class InlineData
-    {
-        public required string mime_type { get; set; }
-        public required string data { get; set; }
-    }
-
     public class GeminiService
     {
         private string apiKey;
