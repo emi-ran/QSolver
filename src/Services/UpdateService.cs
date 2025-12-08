@@ -64,7 +64,7 @@ namespace QSolver.Services
                 var tagName = root.GetProperty("tag_name").GetString() ?? "";
                 var htmlUrl = root.GetProperty("html_url").GetString() ?? "";
 
-                // "v1.5.3" formatından "1.5.3" formatına çevir
+                // "v1.5.4" formatından "1.5.4" formatına çevir
                 var latestVersion = tagName.TrimStart('v', 'V');
                 var currentVersion = GetCurrentVersion();
 
