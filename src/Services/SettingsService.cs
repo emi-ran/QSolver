@@ -9,6 +9,7 @@ namespace QSolver
     {
         public string SelectedModel { get; set; } = "gemini-2.5-flash";
         public bool TurboMode { get; set; } = false;
+        public string? DismissedUpdateVersion { get; set; } = null;
     }
 
     public class SettingsService

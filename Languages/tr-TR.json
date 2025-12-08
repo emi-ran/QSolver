@@ -113,5 +113,13 @@
   "Prompts.Analysis": "Bu görseli analiz et.\n\nEğer görselde bir SORU ve ŞIKLAR (A, B, C, D, E) varsa:\n- Sorunun metnini oku\n- Her satırı ve şıkkı ayrı satırda yaz (newline ile ayır)\n- Orijinal düzeni koru\n\nEğer görselde soru YOKSA veya şıklar YOKSA:\n- Sadece şunu yaz: {\"question_not_found\": true}\n\nEk açıklama ekleme, sadece metni veya JSON'u döndür.",
   "Prompts.Solve": "Sen bir soru çözme yapay zekasısın. Aşağıdaki metni analiz et.\n\nÖNEMLİ: Eğer metin bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:\n- solved: false olmalı\n- answers: boş bırak\n- title: 'Soru bulunamadı' yaz\n- explanation: 'Bu metin bir soru içermiyor.' yaz\n\nEğer metin bir soru ise ve şıklar varsa:\n- Birden fazla soru varsa, cevapları SORU NUMARALARINA GÖRE KÜÇÜKTEN BÜYÜĞE sırala\n- Tek soru için answers alanına sadece şık harfini yaz (örn: 'A')\n- Çoklu soru için answers alanına virgülle ayırarak yaz (örn: 'A,B,C')\n- explanation alanında çözümü markdown formatında adım adım açıkla\n- title alanına kısa bir başlık yaz (max 50 karakter)\n- lecture alanına sorunun dersini yaz (Türkçe, Matematik, Fizik vb.)",
   "Prompts.DirectSolve": "Bu görseli analiz et.\n\nÖNEMLİ: Eğer görsel bir SORU DEĞİLSE veya şıklar (A, B, C, D, E) YOKSA:\n- solved: false olmalı\n- answers: boş bırak veya 'Soru değil' yaz\n- title: 'Soru bulunamadı' yaz\n\nEğer görsel bir soru ise ve şıklar varsa:\n- solved: true\n- answers: Tek soru için 'A', çoklu sorular için 'A,B,C' formatında\n- title: kısa başlık (max 30 karakter)",
-  "Prompts.TitleGen": "Bu soru metni için kısa ve açıklayıcı bir başlık üret. Maksimum 50 karakter olsun. Sadece başlığı ver, JSON formatında değil. Soru metni: {0}"
+  "Prompts.TitleGen": "Bu soru metni için kısa ve açıklayıcı bir başlık üret. Maksimum 50 karakter olsun. Sadece başlığı ver, JSON formatında değil. Soru metni: {0}",
+
+  "Update.CheckForUpdates": "🔄 Güncellemeleri Denetle",
+  "Update.NewVersionAvailable": "🆕 Yeni Sürümü İndir",
+  "Update.Title": "Güncelleme Mevcut",
+  "Update.Message": "Yeni bir sürüm ({0}) mevcut. İndirmek ister misiniz?",
+  "Update.NoUpdate": "Güncelleme Yok",
+  "Update.NoUpdateMessage": "En güncel sürümü ({0}) kullanıyorsunuz.",
+  "Update.Error": "Güncellemeler kontrol edilemedi. Lütfen daha sonra tekrar deneyin."
 }

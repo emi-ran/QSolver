@@ -3,10 +3,12 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using QSolver.Helpers;
 using QSolver.Forms;
+using QSolver.Services;
 
 namespace QSolver
 {
@@ -58,6 +60,9 @@ namespace QSolver
 
             // Tray icon servisini oluştur
             trayIconService = new TrayIconService(CaptureScreen, Exit, ShowApiKeyForm, ShowSettingsForm, ShowHistoryForm);
+
+            // Başlangıçta güncelleme kontrolü
+            _ = StartupUpdateCheckAsync();
         }
 
         // Statik gemini servisi erişimi için metot
@@ -69,6 +74,32 @@ namespace QSolver
                 staticGeminiService = new GeminiService(apiKey);
             }
             return staticGeminiService;
+        }
+
+        /// <summary>
+        /// Başlangıçta güncelleme kontrolü yapar
+        /// </summary>
+        private async Task StartupUpdateCheckAsync()
+        {
+            try
+            {
+                var updateInfo = await UpdateService.CheckForUpdatesAsync();
+                trayIconService?.RefreshUpdateMenuItem();
+
+                if (updateInfo != null && updateInfo.IsNewerVersion)
+                {
+                    // Bu sürüm daha önce reddedilmiş mi kontrol et
+                    if (!UpdateService.IsUpdateDismissed(updateInfo.LatestVersion))
+                    {
+                        // Kullanıcıya güncelleme olduğunu bildir
+                        trayIconService?.ShowUpdateDialog(updateInfo, isManualCheck: false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogWarning($"Güncelleme kontrolü başarısız: {ex.Message}");
+            }
         }
 
         private void ShowApiKeyForm()
@@ -351,11 +382,25 @@ namespace QSolver
         [STAThread]
         static void Main()
         {
+            // DPI ayarlarını en başta etkinleştir (MessageBox'lar için de geçerli olsun)
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // DPI ayarlarını etkinleştir
-            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+            // Mutex ile çoklu uygulama açılmasını engelle
+            const string mutexName = "QSolver_SingleInstance_Mutex";
+            using var mutex = new Mutex(true, mutexName, out bool createdNew);
+
+            if (!createdNew)
+            {
+                // Uygulama zaten çalışıyor
+                MessageBox.Show(
+                    "QSolver zaten çalışıyor!\nSistem tepsisinde (sağ alt köşede) QSolver simgesine tıklayarak erişebilirsiniz.",
+                    "QSolver",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
 
             // Program nesnesini oluştur ve uygulamayı çalıştır
             Program program = new Program();

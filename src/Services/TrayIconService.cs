@@ -3,7 +3,10 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using QSolver.Forms;
+using QSolver.Services;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -102,6 +105,7 @@ namespace QSolver
         private readonly Action apiKeysAction;
         private readonly Action settingsAction;
         private readonly Action historyAction;
+        private ToolStripMenuItem updateMenuItem;
 
         public TrayIconService(Action captureScreenAction, Action exitAction, Action apiKeysAction, Action settingsAction, Action historyAction)
         {
@@ -159,6 +163,14 @@ namespace QSolver
 
             var separator2 = new ToolStripSeparator();
 
+            // Güncelleme kontrolü
+            updateMenuItem = new ToolStripMenuItem(GetUpdateMenuText())
+            {
+                ForeColor = Color.FromArgb(241, 241, 241),
+                Padding = new Padding(8, 4, 8, 4)
+            };
+            updateMenuItem.Click += Update_Click;
+
             // Araçlar ve Yardım
             var logsItem = new ToolStripMenuItem(QSolver.Services.LocalizationService.Get("Tray.Logs"))
             {
@@ -183,6 +195,7 @@ namespace QSolver
             contextMenu.Items.Add(settingsItem);
             contextMenu.Items.Add(apiKeysItem);
             contextMenu.Items.Add(separator2);
+            contextMenu.Items.Add(updateMenuItem);
             contextMenu.Items.Add(logsItem);
             contextMenu.Items.Add(separator3);
             contextMenu.Items.Add(exitItem);
@@ -236,10 +249,126 @@ namespace QSolver
             exitAction?.Invoke();
         }
 
+        /// <summary>
+        /// Güncelleme menü öğesinin metnini döndürür
+        /// </summary>
+        private string GetUpdateMenuText()
+        {
+            if (UpdateService.IsUpdateAvailable())
+            {
+                return LocalizationService.Get("Update.NewVersionAvailable");
+            }
+            return LocalizationService.Get("Update.CheckForUpdates");
+        }
+
+        /// <summary>
+        /// Güncelleme menü öğesinin metnini günceller
+        /// </summary>
+        public void RefreshUpdateMenuItem()
+        {
+            if (updateMenuItem != null)
+            {
+                updateMenuItem.Text = GetUpdateMenuText();
+            }
+        }
+
+        /// <summary>
+        /// Güncelleme menü öğesine tıklandığında
+        /// </summary>
+        private async void Update_Click(object? sender, EventArgs e)
+        {
+            LogHelper.LogInfo("Manuel güncelleme kontrolü başlatıldı");
+            // Her zaman son sürümü kontrol et
+            var updateInfo = await UpdateService.CheckForUpdatesAsync();
+            RefreshUpdateMenuItem();
+
+            if (updateInfo == null)
+            {
+                LogHelper.LogWarning("Güncelleme bilgisi alınamadı");
+                TopMostMessageBox.Show(
+                    LocalizationService.Get("Update.Error"),
+                    LocalizationService.Get("Common.Error"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return;
+            }
+
+            if (updateInfo.IsNewerVersion)
+            {
+                ShowUpdateDialog(updateInfo, isManualCheck: true);
+            }
+            else
+            {
+                LogHelper.LogInfo("Güncelleme bulunamadı, en güncel sürüm kullanılıyor");
+                TopMostMessageBox.Show(
+                    string.Format(LocalizationService.Get("Update.NoUpdateMessage"), UpdateService.GetCurrentVersion()),
+                    LocalizationService.Get("Update.NoUpdate"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Güncelleme diyaloğunu gösterir
+        /// </summary>
+        public void ShowUpdateDialog(UpdateInfo updateInfo, bool isManualCheck = false)
+        {
+            LogHelper.LogInfo($"Güncelleme diyaloğu gösteriliyor: {updateInfo.LatestVersion} (Manuel: {isManualCheck})");
+            var result = TopMostMessageBox.Show(
+                string.Format(LocalizationService.Get("Update.Message"), updateInfo.LatestVersion),
+                LocalizationService.Get("Update.Title"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+            if (result == DialogResult.Yes)
+            {
+                LogHelper.LogInfo("Kullanıcı güncellemeyi kabul etti");
+                UpdateService.OpenReleasePage(updateInfo.ReleaseUrl);
+            }
+            else if (!isManualCheck)
+            {
+                LogHelper.LogInfo("Kullanıcı güncellemeyi reddetti (otomatik kontrol)");
+                // Otomatik kontrolde reddedildiyse kaydet
+                UpdateService.DismissUpdate(updateInfo.LatestVersion);
+            }
+            else
+            {
+                LogHelper.LogInfo("Kullanıcı güncellemeyi reddetti (manuel kontrol)");
+            }
+        }
+
         public void Dispose()
         {
             trayIcon.Visible = false;
             trayIcon.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// TopMost MessageBox göstermek için yardımcı sınıf
+    /// </summary>
+    public static class TopMostMessageBox
+    {
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        public static DialogResult Show(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+        {
+            // Geçici bir topmost form oluştur
+            using var form = new Form
+            {
+                TopMost = true,
+                StartPosition = FormStartPosition.CenterScreen,
+                Width = 0,
+                Height = 0,
+                FormBorderStyle = FormBorderStyle.None,
+                ShowInTaskbar = false
+            };
+            form.Show();
+            form.BringToFront();
+            form.Activate();
+
+            return MessageBox.Show(form, text, caption, buttons, icon);
         }
     }
 }

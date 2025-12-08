@@ -113,5 +113,13 @@
   "Prompts.Analysis": "Analyze this image.\n\nIf the image contains a QUESTION and CHOICES (A, B, C, D, E):\n- Read the question text\n- Write each line and choice on a separate line\n- Preserve original layout\n\nIf NO question or choices found:\n- Just write: {\"question_not_found\": true}\n\nDo not add explanations, return only text or JSON.",
   "Prompts.Solve": "You are a question solving AI. Analyze the text below.\n\nIMPORTANT: If text is NOT A QUESTION or has NO choices:\n- solved: false\n- answers: empty\n- title: 'Question not found'\n- explanation: 'This text does not contain a question.'\n\nIf text is a question with choices:\n- Sort answers by QUESTION NUMBER for multiple questions\n- For single question write choice letter in 'answers' (e.g. 'A')\n- For multiple questions separate with comma (e.g. 'A,B,C')\n- In explanation write step-by-step solution in markdown\n- Write short title (max 50 chars)\n- Write lecture name (Math, Physics etc.)",
   "Prompts.DirectSolve": "Analyze this image.\n\nIMPORTANT: If image is NOT A QUESTION or has NO choices:\n- solved: false\n- answers: empty or 'Not a question'\n- title: 'Question not found'\n\nIf image is a question with choices:\n- solved: true\n- answers: 'A' for single, 'A,B,C' for multiple\n- title: short title (max 30 chars)",
-  "Prompts.TitleGen": "Generate a short and descriptive title for this question text. Max 50 chars. Return only the title, not JSON. Text: {0}"
+  "Prompts.TitleGen": "Generate a short and descriptive title for this question text. Max 50 chars. Return only the title, not JSON. Text: {0}",
+
+  "Update.CheckForUpdates": "🔄 Check for Updates",
+  "Update.NewVersionAvailable": "🆕 Install New Version",
+  "Update.Title": "Update Available",
+  "Update.Message": "A new version ({0}) is available. Would you like to download it?",
+  "Update.NoUpdate": "No Update",
+  "Update.NoUpdateMessage": "You are using the latest version ({0}).",
+  "Update.Error": "Could not check for updates. Please try again later."
 }
