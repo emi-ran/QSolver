@@ -20,6 +20,8 @@
   "App.Started": "Program başlatıldı (Kısayol: Ctrl+Shift+Q)",
   "App.NoApiKey": "Henüz hiç API anahtarı eklenmemiş. Lütfen API Anahtarları menüsünden bir anahtar ekleyin.",
   "App.Exit": "Program kapatılıyor...",
+  "App.AlreadyRunning": "QSolver zaten çalışıyor! Sistem tepsisindeki (sağ alt köşe) simgeye tıklayarak erişebilirsiniz.",
+  "Result.AiNoAnswer": "Yapay zeka gerekli cevabı veremedi",
   
   "Tray.Capture": "🔍 Soru Seç",
   "Tray.History": "📚 Çözüm Geçmişi",

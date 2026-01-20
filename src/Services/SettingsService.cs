@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
-using System.Windows.Forms;
 
 namespace QSolver
 {
@@ -12,113 +10,58 @@ namespace QSolver
         public string? DismissedUpdateVersion { get; set; } = null;
     }
 
-    public class SettingsService
+    public class SettingsService : JsonConfigService<AppSettings>
     {
-        private static readonly string ConfigFilePath = Path.Combine(
+        private static readonly SettingsService Instance = new();
+
+        protected override string ConfigFilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "QSolver",
             "settings.json");
 
-        private static AppSettings settings = new AppSettings();
+        protected override string LoadErrorKey => "Settings.LoadError";
+        protected override string SaveErrorKey => "Settings.SaveError";
 
         static SettingsService()
         {
-            LoadSettings();
+            Instance.LoadData();
         }
 
-        public static AppSettings GetSettings()
-        {
-            return settings;
-        }
+        public static AppSettings GetSettings() => Instance.Data;
 
         public static void UpdateSettings(AppSettings newSettings)
         {
-            settings = newSettings;
-            SaveSettings();
+            Instance.Data = newSettings;
+            Instance.SaveData();
         }
 
-        public static string GetSelectedModel()
-        {
-            return settings.SelectedModel;
-        }
+        public static string GetSelectedModel() => Instance.Data.SelectedModel;
 
         public static void SetSelectedModel(string model)
         {
-            settings.SelectedModel = model;
-            SaveSettings();
+            Instance.Data.SelectedModel = model;
+            Instance.SaveData();
         }
 
-        public static bool GetTurboMode()
-        {
-            return settings.TurboMode;
-        }
+        public static bool GetTurboMode() => Instance.Data.TurboMode;
 
         public static void SetTurboMode(bool enabled)
         {
-            settings.TurboMode = enabled;
-            SaveSettings();
+            Instance.Data.TurboMode = enabled;
+            Instance.SaveData();
         }
 
         public static string[] GetAvailableModels()
         {
             return new string[]
             {
-                "gemini-3-pro-preview",   // En akıllı model - Multimodal ve agentic
+                "gemini-3-pro-preview",    // En akıllı model - Multimodal ve agentic
                 "gemini-2.5-flash",        // Hızlı ve akıllı - Fiyat/performans dengesi
                 "gemini-2.5-flash-lite",   // Ultra hızlı - Maliyet odaklı
                 "gemini-2.5-pro",          // Gelişmiş düşünme - Kompleks problemler
                 "gemini-2.0-flash",        // 2. nesil workhorse
                 "gemini-2.0-flash-lite"    // 2. nesil hızlı model
             };
-        }
-
-        private static void LoadSettings()
-        {
-            try
-            {
-                // Dizin yoksa oluştur
-                string? directory = Path.GetDirectoryName(ConfigFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                if (File.Exists(ConfigFilePath))
-                {
-                    string json = File.ReadAllText(ConfigFilePath);
-                    var loadedSettings = JsonSerializer.Deserialize<AppSettings>(json);
-                    if (loadedSettings != null)
-                    {
-                        settings = loadedSettings;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Settings.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                settings = new AppSettings();
-            }
-        }
-
-        private static void SaveSettings()
-        {
-            try
-            {
-                string? directory = Path.GetDirectoryName(ConfigFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(ConfigFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("Settings.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
     }
 }

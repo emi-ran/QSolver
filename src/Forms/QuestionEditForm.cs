@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -33,7 +34,7 @@ namespace QSolver
             this.Padding = new Padding(2);
 
             // Form yuvarlak köşeli olsun
-            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, this.Width, this.Height, 15, 15));
+            UIHelper.ApplyRoundedCorners(this, 15);
 
             // Soru metin kutusu
             questionTextBox = new RichTextBox
@@ -86,7 +87,7 @@ namespace QSolver
                 Font = new Font("Segoe UI", 10, FontStyle.Regular)
             };
             saveButton.FlatAppearance.BorderSize = 0;
-            saveButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, saveButton.Width, saveButton.Height, 10, 10));
+            UIHelper.ApplyRoundedCorners(saveButton, 10);
             saveButton.Click += SaveButton_Click;
 
             // İptal butonu
@@ -103,27 +104,13 @@ namespace QSolver
                 Font = new Font("Segoe UI", 10, FontStyle.Regular)
             };
             cancelButton.FlatAppearance.BorderSize = 0;
-            cancelButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, cancelButton.Width, cancelButton.Height, 10, 10));
+            UIHelper.ApplyRoundedCorners(cancelButton, 10);
             cancelButton.Click += CancelButton_Click;
 
             // Buton hover efektleri
             foreach (Button btn in new[] { saveButton, cancelButton })
             {
-                btn.MouseEnter += (s, e) =>
-                {
-                    if (s is Button button)
-                    {
-                        button.BackColor = DarkenColor(button.BackColor, 20);
-                    }
-                };
-
-                btn.MouseLeave += (s, e) =>
-                {
-                    if (s is Button button)
-                    {
-                        button.BackColor = LightenColor(button.BackColor, 20);
-                    }
-                };
+                UIHelper.AddHoverEffect(btn, 20);
             }
 
             // Kontrolleri forma ekle
@@ -183,25 +170,7 @@ namespace QSolver
             };
         }
 
-        private Color DarkenColor(Color color, int amount)
-        {
-            return Color.FromArgb(color.A,
-                Math.Max(color.R - amount, 0),
-                Math.Max(color.G - amount, 0),
-                Math.Max(color.B - amount, 0));
-        }
 
-        private Color LightenColor(Color color, int amount)
-        {
-            return Color.FromArgb(color.A,
-                Math.Min(color.R + amount, 255),
-                Math.Min(color.G + amount, 255),
-                Math.Min(color.B + amount, 255));
-        }
-
-        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect,
-            int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
         protected override void OnPaint(PaintEventArgs e)
         {

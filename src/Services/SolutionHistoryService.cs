@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Forms;
 using System.Linq;
+using System.Threading.Tasks;
+using QSolver.Services;
 
 namespace QSolver
 {
@@ -12,7 +14,7 @@ namespace QSolver
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; set; } = DateTime.Now;
-        public string Lecture { get; set; } = string.Empty; // Geriye uyumluluk için
+        public string Lecture { get; set; } = string.Empty;
         public string LectureEn { get; set; } = string.Empty;
         public string LectureTr { get; set; } = string.Empty;
         public string QuestionTitle { get; set; } = string.Empty;
@@ -23,15 +25,12 @@ namespace QSolver
         public string UsedModel { get; set; } = string.Empty;
         public bool WasTurboMode { get; set; } = false;
 
-        /// <summary>
-        /// UI diline göre uygun ders adını döndürür
-        /// </summary>
-        [System.Text.Json.Serialization.JsonIgnore]
+        [JsonIgnore]
         public string LocalizedLecture
         {
             get
             {
-                if (QSolver.Services.LocalizationService.IsTurkish)
+                if (LocalizationService.IsTurkish)
                 {
                     return !string.IsNullOrEmpty(LectureTr) ? LectureTr : Lecture;
                 }
@@ -43,22 +42,25 @@ namespace QSolver
         }
     }
 
-    public class SolutionHistoryService
+    public class SolutionHistoryService : JsonConfigService<List<SolutionHistoryItem>>
     {
+        private static readonly SolutionHistoryService Instance = new();
+
         private static readonly string HistoryDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "QSolver",
             "History");
 
-        private static readonly string HistoryFilePath = Path.Combine(HistoryDirectory, "history.json");
         private static readonly string ScreenshotsDirectory = Path.Combine(HistoryDirectory, "Screenshots");
 
-        private static List<SolutionHistoryItem> historyItems = new List<SolutionHistoryItem>();
+        protected override string ConfigFilePath => Path.Combine(HistoryDirectory, "history.json");
+        protected override string LoadErrorKey => "History.LoadError";
+        protected override string SaveErrorKey => "History.SaveError";
 
         static SolutionHistoryService()
         {
             EnsureDirectoriesExist();
-            LoadHistory();
+            Instance.LoadData();
         }
 
         private static void EnsureDirectoriesExist()
@@ -73,7 +75,9 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.DirCreateError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
+                MessageBox.Show(
+                    $"{LocalizationService.Get("History.DirCreateError")}: {ex.Message}",
+                    LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -83,7 +87,6 @@ namespace QSolver
         {
             try
             {
-                // Title boşsa üret
                 if (string.IsNullOrEmpty(title))
                 {
                     title = wasTurboMode ? questionText : await GenerateQuestionTitle(questionText);
@@ -93,7 +96,7 @@ namespace QSolver
                 {
                     LectureEn = lectureEn,
                     LectureTr = lectureTr,
-                    Lecture = QSolver.Services.LocalizationService.IsTurkish ? lectureTr : lectureEn, // UI dili için
+                    Lecture = LocalizationService.IsTurkish ? lectureTr : lectureEn,
                     QuestionTitle = title,
                     QuestionText = wasTurboMode ? "Turbo Mode - Doğrudan çözüm" : questionText,
                     Answer = answer,
@@ -102,7 +105,6 @@ namespace QSolver
                     WasTurboMode = wasTurboMode
                 };
 
-                // Screenshot'ı kaydet
                 if (screenshotData != null && screenshotData.Length > 0)
                 {
                     var screenshotFileName = $"screenshot_{historyItem.Id}.png";
@@ -111,22 +113,21 @@ namespace QSolver
                     historyItem.ScreenshotPath = screenshotPath;
                 }
 
-                historyItems.Add(historyItem);
-                SaveHistory();
+                Instance.Data.Add(historyItem);
+                Instance.SaveData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.AddError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
+                MessageBox.Show(
+                    $"{LocalizationService.Get("History.AddError")}: {ex.Message}",
+                    LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        /// <summary>
-        /// Geçmişteki tüm benzersiz İngilizce dersleri döndürür
-        /// </summary>
         public static List<string> GetAvailableLecturesEn()
         {
-            return historyItems
+            return Instance.Data
                 .Where(h => !string.IsNullOrEmpty(h.LectureEn))
                 .Select(h => h.LectureEn)
                 .Distinct()
@@ -134,12 +135,9 @@ namespace QSolver
                 .ToList();
         }
 
-        /// <summary>
-        /// Geçmişteki tüm benzersiz Türkçe dersleri döndürür
-        /// </summary>
         public static List<string> GetAvailableLecturesTr()
         {
-            return historyItems
+            return Instance.Data
                 .Where(h => !string.IsNullOrEmpty(h.LectureTr))
                 .Select(h => h.LectureTr)
                 .Distinct()
@@ -147,12 +145,9 @@ namespace QSolver
                 .ToList();
         }
 
-        /// <summary>
-        /// Geçmişteki tüm benzersiz dersleri döndürür (UI dili için)
-        /// </summary>
         public static List<string> GetAvailableLectures()
         {
-            return historyItems
+            return Instance.Data
                 .Where(h => !string.IsNullOrEmpty(h.Lecture))
                 .Select(h => h.Lecture)
                 .Distinct()
@@ -167,21 +162,17 @@ namespace QSolver
 
             try
             {
-                // GeminiService kullanarak AI ile başlık üret
                 var geminiService = new GeminiService(null);
                 return await geminiService.GenerateQuestionTitle(questionText);
             }
             catch (Exception ex)
             {
-                // AI başlık üretimi başarısız, basit başlık kullanılıyor
-                System.Diagnostics.Debug.WriteLine($"AI başlık üretimi başarısız, basit başlık kullanılıyor: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"AI başlık üretimi başarısız: {ex.Message}");
 
-                // Hata durumunda basit başlık üretimi
                 var title = questionText.Trim();
                 if (title.Length > 50)
                     title = title.Substring(0, 50) + "...";
 
-                // Özel karakterleri temizle
                 title = title.Replace("\n", " ").Replace("\r", " ");
                 while (title.Contains("  "))
                     title = title.Replace("  ", " ");
@@ -192,7 +183,7 @@ namespace QSolver
 
         public static List<SolutionHistoryItem> GetHistory()
         {
-            return historyItems.OrderByDescending(h => h.Timestamp).ToList();
+            return Instance.Data.OrderByDescending(h => h.Timestamp).ToList();
         }
 
         public static List<SolutionHistoryItem> SearchHistory(string searchTerm)
@@ -200,10 +191,9 @@ namespace QSolver
             if (string.IsNullOrEmpty(searchTerm))
                 return GetHistory();
 
-            // Arananı normalize et (küçük harf, noktalama işaretleri kaldır)
             var normalizedSearchTerm = NormalizeForSearch(searchTerm);
 
-            return historyItems
+            return Instance.Data
                 .Where(h => NormalizeForSearch(h.Lecture).Contains(normalizedSearchTerm) ||
                            NormalizeForSearch(h.QuestionTitle).Contains(normalizedSearchTerm) ||
                            NormalizeForSearch(h.QuestionText).Contains(normalizedSearchTerm) ||
@@ -212,22 +202,16 @@ namespace QSolver
                 .ToList();
         }
 
-        /// <summary>
-        /// Metin araması için normalleştirme - noktalama işaretlerini kaldırır, küçük harfe çevirir
-        /// </summary>
         private static string NormalizeForSearch(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return "";
 
-            // Küçük harfe çevir
             text = text.ToLower();
 
-            // Türkçe karakterleri koru, sadece noktalama işaretlerini kaldır
             var result = new System.Text.StringBuilder();
             foreach (char c in text)
             {
-                // Harf, rakam veya boşluk ise ekle
                 if (char.IsLetterOrDigit(c) || char.IsWhiteSpace(c))
                 {
                     result.Append(c);
@@ -241,22 +225,23 @@ namespace QSolver
         {
             try
             {
-                var item = historyItems.FirstOrDefault(h => h.Id == id);
+                var item = Instance.Data.FirstOrDefault(h => h.Id == id);
                 if (item != null)
                 {
-                    // Screenshot dosyasını da sil
                     if (!string.IsNullOrEmpty(item.ScreenshotPath) && File.Exists(item.ScreenshotPath))
                     {
                         File.Delete(item.ScreenshotPath);
                     }
 
-                    historyItems.Remove(item);
-                    SaveHistory();
+                    Instance.Data.Remove(item);
+                    Instance.SaveData();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.DeleteError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
+                MessageBox.Show(
+                    $"{LocalizationService.Get("History.DeleteError")}: {ex.Message}",
+                    LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -265,8 +250,7 @@ namespace QSolver
         {
             try
             {
-                // Tüm screenshot'ları sil
-                foreach (var item in historyItems)
+                foreach (var item in Instance.Data)
                 {
                     if (!string.IsNullOrEmpty(item.ScreenshotPath) && File.Exists(item.ScreenshotPath))
                     {
@@ -274,60 +258,18 @@ namespace QSolver
                     }
                 }
 
-                historyItems.Clear();
-                SaveHistory();
+                Instance.Data.Clear();
+                Instance.SaveData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.ClearError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
+                MessageBox.Show(
+                    $"{LocalizationService.Get("History.ClearError")}: {ex.Message}",
+                    LocalizationService.Get("Common.Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        public static int GetHistoryCount()
-        {
-            return historyItems.Count;
-        }
-
-        private static void LoadHistory()
-        {
-            try
-            {
-                if (File.Exists(HistoryFilePath))
-                {
-                    string json = File.ReadAllText(HistoryFilePath);
-                    var loadedItems = JsonSerializer.Deserialize<List<SolutionHistoryItem>>(json);
-                    if (loadedItems != null)
-                    {
-                        historyItems = loadedItems;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                historyItems = new List<SolutionHistoryItem>();
-            }
-        }
-
-        private static void SaveHistory()
-        {
-            try
-            {
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                };
-                string json = JsonSerializer.Serialize(historyItems, options);
-                File.WriteAllText(HistoryFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("History.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+        public static int GetHistoryCount() => Instance.Data.Count;
     }
 }

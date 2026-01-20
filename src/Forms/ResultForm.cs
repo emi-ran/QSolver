@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Drawing.Drawing2D;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -76,7 +77,7 @@ namespace QSolver
             this.Opacity = 0;
 
             // Form yuvarlak köşeli olsun
-            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, this.Width, this.Height, 15, 15));
+            UIHelper.ApplyRoundedCorners(this, 15);
 
             // Formun ekran sınırları içinde kalmasını sağla
             Screen currentScreen = Screen.FromControl(this);
@@ -136,7 +137,7 @@ namespace QSolver
                 Visible = false
             };
             confirmButton.FlatAppearance.BorderSize = 0;
-            confirmButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, confirmButton.Width, confirmButton.Height, 10, 10));
+            UIHelper.ApplyRoundedCorners(confirmButton, 10);
 
             // Düzenleme butonu
             editButton = new Button
@@ -151,7 +152,7 @@ namespace QSolver
                 Visible = false
             };
             editButton.FlatAppearance.BorderSize = 0;
-            editButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, editButton.Width, editButton.Height, 10, 10));
+            UIHelper.ApplyRoundedCorners(editButton, 10);
 
             // Çözüm adımları butonu
             solutionStepsButton = new Button
@@ -166,7 +167,7 @@ namespace QSolver
                 Visible = false
             };
             solutionStepsButton.FlatAppearance.BorderSize = 0;
-            solutionStepsButton.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, solutionStepsButton.Width, solutionStepsButton.Height, 10, 10));
+            UIHelper.ApplyRoundedCorners(solutionStepsButton, 10);
 
             // Fade-in/out animasyonu için timer
             fadeTimer = new System.Windows.Forms.Timer { Interval = 16 }; // ~60 FPS
@@ -208,21 +209,7 @@ namespace QSolver
             // Buton hover efektleri
             foreach (Button btn in new[] { confirmButton, editButton, solutionStepsButton })
             {
-                btn.MouseEnter += (s, e) =>
-                {
-                    if (s is Button button)
-                    {
-                        button.BackColor = DarkenColor(button.BackColor, 20);
-                    }
-                };
-
-                btn.MouseLeave += (s, e) =>
-                {
-                    if (s is Button button)
-                    {
-                        button.BackColor = LightenColor(button.BackColor, 20);
-                    }
-                };
+                UIHelper.AddHoverEffect(btn, 20);
             }
 
             // Olay işleyicileri
@@ -271,26 +258,6 @@ namespace QSolver
             isFadingIn = false;
             fadeTimer.Start();
         }
-
-        private Color DarkenColor(Color color, int amount)
-        {
-            return Color.FromArgb(color.A,
-                Math.Max(color.R - amount, 0),
-                Math.Max(color.G - amount, 0),
-                Math.Max(color.B - amount, 0));
-        }
-
-        private Color LightenColor(Color color, int amount)
-        {
-            return Color.FromArgb(color.A,
-                Math.Min(color.R + amount, 255),
-                Math.Min(color.G + amount, 255),
-                Math.Min(color.B + amount, 255));
-        }
-
-        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect,
-            int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
         private void ConfirmButton_Click(object? sender, EventArgs e)
         {
@@ -471,7 +438,7 @@ namespace QSolver
                 // JSON formatında cevap var mı kontrol et
                 if (answer == "?" || answer == "Hata")
                 {
-                    answerLetter = "Yapay zeka gerekli cevabı veremedi";
+                    answerLetter = QSolver.Services.LocalizationService.Get("Result.AiNoAnswer");
                 }
 
                 // Çözüm tamamlandığında UI'ı güncelle
@@ -565,7 +532,7 @@ namespace QSolver
                     if (answer == "?" || answer == "Hata")
                     {
                         solutionText = fullResponse;
-                        answerLetter = "Yapay zeka gerekli cevabı veremedi";
+                        answerLetter = QSolver.Services.LocalizationService.Get("Result.AiNoAnswer");
 
                         if (this.IsHandleCreated)
                         {

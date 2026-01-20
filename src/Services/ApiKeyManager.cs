@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
-using System.Windows.Forms;
 using System.Linq;
 
 namespace QSolver
@@ -13,107 +11,61 @@ namespace QSolver
         public string Description { get; set; } = string.Empty;
     }
 
-    public class ApiKeyManager
+    public class ApiKeyManager : JsonConfigService<List<ApiKey>>
     {
-        private static readonly string ConfigFilePath = Path.Combine(
+        private static readonly ApiKeyManager Instance = new();
+        private static readonly Random RandomInstance = new();
+
+        protected override string ConfigFilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "QSolver",
             "apikeys.json");
 
-        private static readonly Random random = new Random();
-        private static List<ApiKey> apiKeys = new List<ApiKey>();
+        protected override string LoadErrorKey => "ApiKey.LoadError";
+        protected override string SaveErrorKey => "ApiKey.SaveError";
 
         static ApiKeyManager()
         {
-            LoadApiKeys();
+            Instance.LoadData();
         }
 
-        public static List<ApiKey> GetApiKeys()
-        {
-            return apiKeys;
-        }
+        public static List<ApiKey> GetApiKeys() => Instance.Data;
 
         public static void AddApiKey(ApiKey apiKey)
         {
-            apiKeys.Add(apiKey);
-            SaveApiKeys();
+            Instance.Data.Add(apiKey);
+            Instance.SaveData();
         }
 
         public static void RemoveApiKey(ApiKey apiKey)
         {
-            apiKeys.Remove(apiKey);
-            SaveApiKeys();
+            Instance.Data.Remove(apiKey);
+            Instance.SaveData();
         }
 
         public static void UpdateApiKey(int index, ApiKey apiKey)
         {
-            if (index >= 0 && index < apiKeys.Count)
+            if (index >= 0 && index < Instance.Data.Count)
             {
-                apiKeys[index] = apiKey;
-                SaveApiKeys();
+                Instance.Data[index] = apiKey;
+                Instance.SaveData();
             }
         }
 
         public static string GetRandomApiKey()
         {
-            if (apiKeys.Count == 0)
+            if (Instance.Data.Count == 0)
             {
-                // Varsayılan API anahtarı (boş olabilir)
                 return string.Empty;
             }
 
-            int randomIndex = random.Next(apiKeys.Count);
-            return apiKeys[randomIndex].Key;
+            int randomIndex = RandomInstance.Next(Instance.Data.Count);
+            return Instance.Data[randomIndex].Key;
         }
 
         public static List<string> GetAllApiKeys()
         {
-            return apiKeys.Select(k => k.Key).ToList();
-        }
-
-        private static void LoadApiKeys()
-        {
-            try
-            {
-                // Dizin yoksa oluştur
-                string? directory = Path.GetDirectoryName(ConfigFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                if (File.Exists(ConfigFilePath))
-                {
-                    string json = File.ReadAllText(ConfigFilePath);
-                    apiKeys = JsonSerializer.Deserialize<List<ApiKey>>(json) ?? new List<ApiKey>();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("ApiKey.LoadError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                apiKeys = new List<ApiKey>();
-            }
-        }
-
-        private static void SaveApiKeys()
-        {
-            try
-            {
-                string? directory = Path.GetDirectoryName(ConfigFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                string json = JsonSerializer.Serialize(apiKeys, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(ConfigFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{QSolver.Services.LocalizationService.Get("ApiKey.SaveError")}: {ex.Message}", QSolver.Services.LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            return Instance.Data.Select(k => k.Key).ToList();
         }
     }
 }
