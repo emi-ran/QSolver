@@ -1,8 +1,6 @@
 using System;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Google.GenAI;
 using QSolver.Services;
 
 namespace QSolver
@@ -24,9 +22,6 @@ namespace QSolver
 
     public class ApiKeyValidator
     {
-        private static readonly HttpClient httpClient = new HttpClient();
-        private const string API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-
         public static async Task<ApiKeyValidationResult> ValidateApiKeyAsync(string apiKey)
         {
             var result = new ApiKeyValidationResult
@@ -38,61 +33,32 @@ namespace QSolver
 
             try
             {
-                // API key'i doğrulamak için models:list endpoint'ini kullan
-                // Bu endpoint daha hafif ve sadece API key kontrolü için yeterli
-                var response = await httpClient.GetAsync(
-                    $"{API_URL_BASE}?key={apiKey}");
-
-                if (response.IsSuccessStatusCode)
+                var client = new Client(apiKey: apiKey);
+                // Model listesi çekerek API key'i doğrula
+                var pager = await client.Models.ListAsync();
+                // İlk modeli almayı dene - başarılıysa key geçerli
+                await foreach (var model in pager)
                 {
+                    // En az bir model geldiyse key geçerlidir
                     result.Status = ApiKeyStatus.Valid;
                     result.Message = LocalizationService.Get("ApiKey.Status.Valid");
                     return result;
                 }
 
-                // Hata durumlarını kontrol et
-                string errorContent = await response.Content.ReadAsStringAsync();
-
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    result.Status = ApiKeyStatus.RateLimit;
-                    result.Message = LocalizationService.Get("ApiKey.Status.RateLimit");
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
-                {
-                    // API key geçersiz olabilir
-                    if (errorContent.Contains("API_KEY_INVALID") || errorContent.Contains("invalid"))
-                    {
-                        result.Status = ApiKeyStatus.Invalid;
-                        result.Message = LocalizationService.Get("ApiKey.Status.Invalid");
-                    }
-                    else
-                    {
-                        result.Status = ApiKeyStatus.Invalid;
-                        result.Message = LocalizationService.Get("Common.Error") + " (Bad Request)";
-                    }
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                {
-                    result.Status = ApiKeyStatus.Invalid;
-                    result.Message = LocalizationService.Get("ApiKey.Status.Invalid") + " (Forbidden)";
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    // 404 hatası - muhtemelen API key geçersiz veya endpoint yanlış
-                    result.Status = ApiKeyStatus.Invalid;
-                    result.Message = LocalizationService.Get("ApiKey.Status.Invalid") + " (404)";
-                }
-                else
-                {
-                    result.Status = ApiKeyStatus.Invalid;
-                    result.Message = $"HTTP {(int)response.StatusCode}";
-                }
+                // Model gelmediyse de key geçerlidir ama sonuç boş
+                result.Status = ApiKeyStatus.Valid;
+                result.Message = LocalizationService.Get("ApiKey.Status.Valid");
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
             {
-                result.Status = ApiKeyStatus.Unknown;
-                result.Message = LocalizationService.Get("Common.Error") + ": " + ex.Message;
+                result.Status = ApiKeyStatus.RateLimit;
+                result.Message = LocalizationService.Get("ApiKey.Status.RateLimit");
+            }
+            catch (Exception ex) when (ex.Message.Contains("API_KEY_INVALID") || ex.Message.Contains("invalid") ||
+                                       ex.Message.Contains("403") || ex.Message.Contains("401"))
+            {
+                result.Status = ApiKeyStatus.Invalid;
+                result.Message = LocalizationService.Get("ApiKey.Status.Invalid");
             }
             catch (Exception ex)
             {

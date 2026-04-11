@@ -1,21 +1,23 @@
 using System;
 using System.IO;
-using System.Net.Http;
-using System.Text;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Google.GenAI;
+using Google.GenAI.Types;
 using QSolver.Helpers;
 using QSolver.Models;
 using QSolver.Services;
+using GContent = Google.GenAI.Types.Content;
+using GPart = Google.GenAI.Types.Part;
+using SchemaType = Google.GenAI.Types.Type;
 
 namespace QSolver
 {
     public class GeminiService
     {
         private string apiKey;
-        private readonly HttpClient httpClient;
-        private const string API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
         public GeminiService(string? apiKey)
         {
@@ -23,42 +25,35 @@ namespace QSolver
             this.apiKey = string.IsNullOrEmpty(apiKey) ?
                 ApiKeyManager.GetRandomApiKey() :
                 apiKey;
-
-            httpClient = new HttpClient();
         }
 
-        private void UpdateApiKey()
+        private Client CreateClient(string key)
         {
-            string newKey = ApiKeyManager.GetRandomApiKey();
-            if (!string.IsNullOrEmpty(newKey))
-            {
-                apiKey = newKey;
-                LogHelper.LogDebug("API anahtarı güncellendi");
-            }
+            return new Client(apiKey: key);
         }
 
         /// <summary>
-        /// OCR yanıtı için JSON schema döndürür
+        /// OCR yanıtı için Schema döndürür
         /// </summary>
-        private static object GetOcrSchema()
+        private static Schema GetOcrSchema()
         {
-            return new
+            return new Schema
             {
-                type = "object",
-                properties = new
+                Type = SchemaType.Object,
+                Properties = new Dictionary<string, Schema>
                 {
-                    text = new { type = "string", description = "Görselde tespit edilen metin. Her satırı newline (\\n) karakteri ile ayır. Şıklar ve paragraflar ayrı satırlarda olmalı. Metin yoksa boş string." },
-                    hasText = new { type = "boolean", description = "Görselde metin var mı?" }
+                    { "text", new Schema { Type = SchemaType.String, Description = "Görselde tespit edilen metin. Her satırı newline (\\n) karakteri ile ayır. Şıklar ve paragraflar ayrı satırlarda olmalı. Metin yoksa boş string." } },
+                    { "hasText", new Schema { Type = SchemaType.Boolean, Description = "Görselde metin var mı?" } }
                 },
-                required = new[] { "text", "hasText" },
-                propertyOrdering = new[] { "text", "hasText" }
+                Required = new List<string> { "text", "hasText" },
+                PropertyOrdering = new List<string> { "text", "hasText" }
             };
         }
 
         /// <summary>
-        /// Soru çözümü yanıtı için JSON schema döndürür
+        /// Soru çözümü yanıtı için Schema döndürür
         /// </summary>
-        private static object GetSolutionSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
+        private static Schema GetSolutionSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
         {
             string lectureEnDescription = availableLecturesEn.Count > 0
                 ? $"Lecture name in ENGLISH. Known: [{string.Join(", ", availableLecturesEn)}]. Use if matches, else write new."
@@ -68,27 +63,27 @@ namespace QSolver
                 ? $"Ders adı TÜRKÇE. Bilinenler: [{string.Join(", ", availableLecturesTr)}]. Eşleşiyorsa kullan, yoksa yeni yaz."
                 : "Ders adı TÜRKÇE (örn: Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Türkçe, İngilizce)";
 
-            return new
+            return new Schema
             {
-                type = "object",
-                properties = new
+                Type = SchemaType.Object,
+                Properties = new Dictionary<string, Schema>
                 {
-                    lecture_en = new { type = "string", description = lectureEnDescription },
-                    lecture_tr = new { type = "string", description = lectureTrDescription },
-                    title = new { type = "string", description = "Sorunun kısa başlığı (max 50 karakter), örn: 'Matematik: Türev', 'Fizik: Hareket'" },
-                    explanation = new { type = "string", description = "Çözümün markdown formatında adım adım açıklaması" },
-                    solved = new { type = "boolean", description = "Sorunun başarıyla çözülüp çözülemediği" },
-                    answers = new { type = "string", description = "Cevap(lar) - tek soru için 'A', çoklu sorular için soru numarasına göre sıralı 'A,B,C' formatında" }
+                    { "lecture_en", new Schema { Type = SchemaType.String, Description = lectureEnDescription } },
+                    { "lecture_tr", new Schema { Type = SchemaType.String, Description = lectureTrDescription } },
+                    { "title", new Schema { Type = SchemaType.String, Description = "Sorunun kısa başlığı (max 50 karakter), örn: 'Matematik: Türev', 'Fizik: Hareket'" } },
+                    { "explanation", new Schema { Type = SchemaType.String, Description = "Çözümün markdown formatında adım adım açıklaması" } },
+                    { "solved", new Schema { Type = SchemaType.Boolean, Description = "Sorunun başarıyla çözülüp çözülemediği" } },
+                    { "answers", new Schema { Type = SchemaType.String, Description = "Cevap(lar) - tek soru için 'A', çoklu sorular için soru numarasına göre sıralı 'A,B,C' formatında" } }
                 },
-                required = new[] { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" },
-                propertyOrdering = new[] { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" }
+                Required = new List<string> { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" },
+                PropertyOrdering = new List<string> { "lecture_en", "lecture_tr", "title", "explanation", "solved", "answers" }
             };
         }
 
         /// <summary>
         /// Turbo Mode için minimal schema - sadece cevap ve başlık
         /// </summary>
-        private static object GetTurboSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
+        private static Schema GetTurboSchema(List<string> availableLecturesEn, List<string> availableLecturesTr)
         {
             string lectureEnDescription = availableLecturesEn.Count > 0
                 ? $"Lecture in ENGLISH. Known: [{string.Join(", ", availableLecturesEn)}]. Select if matches, else write new."
@@ -98,20 +93,32 @@ namespace QSolver
                 ? $"Ders adı TÜRKÇE. [{string.Join(", ", availableLecturesTr)}]. Eşleşiyorsa seç, yoksa yeni yaz."
                 : "Ders adı TÜRKÇE (Matematik, Fizik, Kimya vb.)";
 
-            return new
+            return new Schema
             {
-                type = "object",
-                properties = new
+                Type = SchemaType.Object,
+                Properties = new Dictionary<string, Schema>
                 {
-                    lecture_en = new { type = "string", description = lectureEnDescription },
-                    lecture_tr = new { type = "string", description = lectureTrDescription },
-                    title = new { type = "string", description = "Sorunun kısa başlığı (max 30 karakter)" },
-                    solved = new { type = "boolean", description = "Çözüldü mü?" },
-                    answers = new { type = "string", description = "Cevap(lar) - 'A' veya 'A,B,C'" }
+                    { "lecture_en", new Schema { Type = SchemaType.String, Description = lectureEnDescription } },
+                    { "lecture_tr", new Schema { Type = SchemaType.String, Description = lectureTrDescription } },
+                    { "title", new Schema { Type = SchemaType.String, Description = "Sorunun kısa başlığı (max 30 karakter)" } },
+                    { "solved", new Schema { Type = SchemaType.Boolean, Description = "Çözüldü mü?" } },
+                    { "answers", new Schema { Type = SchemaType.String, Description = "Cevap(lar) - 'A' veya 'A,B,C'" } }
                 },
-                required = new[] { "lecture_en", "lecture_tr", "title", "solved", "answers" },
-                propertyOrdering = new[] { "lecture_en", "lecture_tr", "title", "solved", "answers" }
+                Required = new List<string> { "lecture_en", "lecture_tr", "title", "solved", "answers" },
+                PropertyOrdering = new List<string> { "lecture_en", "lecture_tr", "title", "solved", "answers" }
             };
+        }
+
+        /// <summary>
+        /// SDK yanıtından text çıkarır
+        /// </summary>
+        private static string? ExtractText(GenerateContentResponse response)
+        {
+            var content = response.Candidates?
+                .FirstOrDefault()?.Content;
+            var part = content?.Parts?
+                .FirstOrDefault();
+            return part?.Text;
         }
 
         public async Task<string> AnalyzeImage(string base64Image)
@@ -129,6 +136,8 @@ namespace QSolver
                     throw new Exception("Kullanılabilir API anahtarı bulunamadı");
                 }
 
+                byte[] imageBytes = Convert.FromBase64String(base64Image);
+
                 // Her API anahtarı için deneme yap
                 foreach (var currentKey in allApiKeys)
                 {
@@ -139,72 +148,42 @@ namespace QSolver
                         apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
-                        // API isteği için JSON hazırla (Structured Output ile)
-                        var request = new GeminiRequest
-                        {
-                            contents = new[]
+                        var client = CreateClient(currentKey);
+                        var selectedModel = SettingsService.GetSelectedModel();
+
+                        var response = await client.Models.GenerateContentAsync(
+                            model: selectedModel,
+                            contents: new List<GContent>
                             {
-                                new Content
+                                new GContent
                                 {
-                                    parts = new[]
+                                    Role = "user",
+                                    Parts = new List<GPart>
                                     {
-                                        new Part { text = LocalizationService.Get("Prompts.Analysis") },
-                                        new Part
+                                        new GPart { Text = LocalizationService.Get("Prompts.Analysis") },
+                                        new GPart
                                         {
-                                            inline_data = new InlineData
+                                            InlineData = new Blob
                                             {
-                                                mime_type = "image/png",
-                                                data = base64Image
+                                                Data = imageBytes,
+                                                MimeType = "image/png"
                                             }
                                         }
                                     }
                                 }
                             },
-                            generationConfig = new GenerationConfig
+                            config: new GenerateContentConfig
                             {
-                                responseMimeType = "application/json",
-                                responseSchema = GetOcrSchema()
+                                ResponseMimeType = "application/json",
+                                ResponseSchema = GetOcrSchema()
                             }
-                        };
+                        );
 
-                        string jsonRequest = JsonSerializer.Serialize(request);
-                        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+                        string? structuredJson = ExtractText(response);
+                        LogHelper.LogDebug($"Gemini OCR yanıtı: {structuredJson}");
 
-                        // API'ye istek gönder
-                        var selectedModel = SettingsService.GetSelectedModel();
-                        var response = await httpClient.PostAsync($"{API_URL_BASE}/{selectedModel}:generateContent?key={apiKey}", content);
-
-                        if (!response.IsSuccessStatusCode)
+                        if (structuredJson != null)
                         {
-                            string errorContent = await response.Content.ReadAsStringAsync();
-                            LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
-
-                            // Kota hatası ise diğer anahtarı dene
-                            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                            {
-                                triedKeys.Add(currentKey);
-                                lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                                continue;
-                            }
-
-                            return $"API hatası: HTTP {(int)response.StatusCode} - {errorContent}";
-                        }
-
-                        var jsonResponse = await response.Content.ReadAsStringAsync();
-                        LogHelper.LogDebug($"Gemini OCR yanıtı: {jsonResponse}");
-
-                        // Structured output yanıtını işle
-                        using JsonDocument document = JsonDocument.Parse(jsonResponse);
-                        var root = document.RootElement;
-
-                        if (root.TryGetProperty("candidates", out var candidates) &&
-                            candidates.GetArrayLength() > 0 &&
-                            candidates[0].TryGetProperty("content", out var contentElement) &&
-                            contentElement.TryGetProperty("parts", out var parts) &&
-                            parts.GetArrayLength() > 0 &&
-                            parts[0].TryGetProperty("text", out var textElement))
-                        {
-                            string structuredJson = textElement.GetString() ?? "{}";
                             var ocrResult = JsonSerializer.Deserialize<OcrResponse>(structuredJson);
 
                             if (ocrResult != null && ocrResult.hasText)
@@ -221,6 +200,13 @@ namespace QSolver
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return "Yanıt işlenemedi. API yanıtı beklenen formatta değil.";
+                    }
+                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    {
+                        triedKeys.Add(currentKey);
+                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        continue;
                     }
                     catch (Exception ex)
                     {
@@ -282,67 +268,24 @@ namespace QSolver
                             lectureHint = $"\n\nKnown lectures EN: [{string.Join(", ", availableLecturesEn)}]\nBilinen dersler TR: [{string.Join(", ", availableLecturesTr)}]";
                         }
 
-                        // API isteği için JSON hazırla (Structured Output ile)
-                        var request = new GeminiRequest
-                        {
-                            contents = new[]
-                            {
-                                new Content
-                                {
-                                    parts = new[]
-                                    {
-                                        new Part
-                                        {
-                                            text = LocalizationService.Get("Prompts.Solve") + lectureHint + "\n\n" + (LocalizationService.IsTurkish ? "Metin:" : "Text:") + "\n" + questionText
-                                        }
-                                    }
-                                }
-                            },
-                            generationConfig = new GenerationConfig
-                            {
-                                responseMimeType = "application/json",
-                                responseSchema = GetSolutionSchema(availableLecturesEn, availableLecturesTr)
-                            }
-                        };
-
-                        string jsonRequest = JsonSerializer.Serialize(request);
-                        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-                        // API'ye istek gönder
+                        var client = CreateClient(currentKey);
                         var selectedModel = SettingsService.GetSelectedModel();
-                        var response = await httpClient.PostAsync($"{API_URL_BASE}/{selectedModel}:generateContent?key={apiKey}", content);
 
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            string errorContent = await response.Content.ReadAsStringAsync();
-                            LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
-
-                            // Kota hatası ise diğer anahtarı dene
-                            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                        var response = await client.Models.GenerateContentAsync(
+                            model: selectedModel,
+                            contents: LocalizationService.Get("Prompts.Solve") + lectureHint + "\n\n" + (LocalizationService.IsTurkish ? "Metin:" : "Text:") + "\n" + questionText,
+                            config: new GenerateContentConfig
                             {
-                                triedKeys.Add(currentKey);
-                                lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                                continue;
+                                ResponseMimeType = "application/json",
+                                ResponseSchema = GetSolutionSchema(availableLecturesEn, availableLecturesTr)
                             }
+                        );
 
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "", "");
-                        }
+                        string? structuredJson = ExtractText(response);
+                        LogHelper.LogDebug($"Gemini Solver yanıtı: {structuredJson}");
 
-                        var jsonResponse = await response.Content.ReadAsStringAsync();
-                        LogHelper.LogDebug($"Gemini Solver yanıtı: {jsonResponse}");
-
-                        // Structured output yanıtını işle
-                        using JsonDocument document = JsonDocument.Parse(jsonResponse);
-                        var root = document.RootElement;
-
-                        if (root.TryGetProperty("candidates", out var candidates) &&
-                            candidates.GetArrayLength() > 0 &&
-                            candidates[0].TryGetProperty("content", out var contentElement) &&
-                            contentElement.TryGetProperty("parts", out var parts) &&
-                            parts.GetArrayLength() > 0 &&
-                            parts[0].TryGetProperty("text", out var textElement))
+                        if (structuredJson != null)
                         {
-                            string structuredJson = textElement.GetString() ?? "{}";
                             var solutionResult = JsonSerializer.Deserialize<SolutionResponse>(structuredJson);
 
                             if (solutionResult != null)
@@ -360,6 +303,13 @@ namespace QSolver
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return ("Yanıt işlenemedi.", "Hata", "", "");
+                    }
+                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    {
+                        triedKeys.Add(currentKey);
+                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        continue;
                     }
                     catch (Exception ex)
                     {
@@ -404,6 +354,8 @@ namespace QSolver
                     throw new Exception("Kullanılabilir API anahtarı bulunamadı");
                 }
 
+                byte[] imageBytes = Convert.FromBase64String(base64Image);
+
                 // Her API anahtarı için deneme yap
                 foreach (var currentKey in allApiKeys)
                 {
@@ -425,75 +377,45 @@ namespace QSolver
                             lectureHint = "\n- lecture_en: Lecture in English (Mathematics, Physics etc.)\n- lecture_tr: Ders adı Türkçe (Matematik, Fizik vb.)";
                         }
 
-                        // API isteği için JSON hazırla (Turbo Mode - Minimal Schema)
-                        var request = new GeminiRequest
-                        {
-                            contents = new[]
+                        var client = CreateClient(currentKey);
+                        var selectedModel = SettingsService.GetSelectedModel();
+
+                        var response = await client.Models.GenerateContentAsync(
+                            model: selectedModel,
+                            contents: new List<GContent>
                             {
-                                new Content
+                                new GContent
                                 {
-                                    parts = new[]
+                                    Role = "user",
+                                    Parts = new List<GPart>
                                     {
-                                        new Part
+                                        new GPart
                                         {
-                                            text = LocalizationService.Get("Prompts.DirectSolve") + lectureHint
+                                            Text = LocalizationService.Get("Prompts.DirectSolve") + lectureHint
                                         },
-                                        new Part
+                                        new GPart
                                         {
-                                            inline_data = new InlineData
+                                            InlineData = new Blob
                                             {
-                                                mime_type = "image/png",
-                                                data = base64Image
+                                                Data = imageBytes,
+                                                MimeType = "image/png"
                                             }
                                         }
                                     }
                                 }
                             },
-                            generationConfig = new GenerationConfig
+                            config: new GenerateContentConfig
                             {
-                                responseMimeType = "application/json",
-                                responseSchema = GetTurboSchema(availableLecturesEn, availableLecturesTr)
+                                ResponseMimeType = "application/json",
+                                ResponseSchema = GetTurboSchema(availableLecturesEn, availableLecturesTr)
                             }
-                        };
+                        );
 
-                        string jsonRequest = JsonSerializer.Serialize(request);
-                        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+                        string? structuredJson = ExtractText(response);
+                        LogHelper.LogDebug($"Gemini Turbo yanıtı: {structuredJson}");
 
-                        // API'ye istek gönder
-                        var selectedModel = SettingsService.GetSelectedModel();
-                        var response = await httpClient.PostAsync($"{API_URL_BASE}/{selectedModel}:generateContent?key={apiKey}", content);
-
-                        if (!response.IsSuccessStatusCode)
+                        if (structuredJson != null)
                         {
-                            string errorContent = await response.Content.ReadAsStringAsync();
-                            LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
-
-                            // Kota hatası ise diğer anahtarı dene
-                            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                            {
-                                triedKeys.Add(currentKey);
-                                lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                                continue;
-                            }
-
-                            return ($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}", "Hata", "API Hatası", "", "");
-                        }
-
-                        var jsonResponse = await response.Content.ReadAsStringAsync();
-                        LogHelper.LogDebug($"Gemini Turbo yanıtı: {jsonResponse}");
-
-                        // Turbo structured output yanıtını işle
-                        using JsonDocument document = JsonDocument.Parse(jsonResponse);
-                        var root = document.RootElement;
-
-                        if (root.TryGetProperty("candidates", out var candidates) &&
-                            candidates.GetArrayLength() > 0 &&
-                            candidates[0].TryGetProperty("content", out var contentElement) &&
-                            contentElement.TryGetProperty("parts", out var parts) &&
-                            parts.GetArrayLength() > 0 &&
-                            parts[0].TryGetProperty("text", out var textElement))
-                        {
-                            string structuredJson = textElement.GetString() ?? "{}";
                             var turboResult = JsonSerializer.Deserialize<TurboResponse>(structuredJson);
 
                             if (turboResult != null)
@@ -513,6 +435,13 @@ namespace QSolver
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru", "", "");
+                    }
+                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    {
+                        triedKeys.Add(currentKey);
+                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        continue;
                     }
                     catch (Exception ex)
                     {
@@ -544,51 +473,32 @@ namespace QSolver
             {
                 LogHelper.LogInfo("Soru başlığı üretiliyor...");
 
-                // API isteği için JSON hazırla
-                var request = new GeminiRequest
-                {
-                    contents = new[]
-                    {
-                        new Content
-                        {
-                            parts = new[]
-                            {
-                                new Part
-                                {
-                                    text = LocalizationService.Get("Prompts.TitleGen", questionText)
-                                }
-                            }
-                        }
-                    }
-                };
-
-                string jsonRequest = JsonSerializer.Serialize(request);
-                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-                // API'ye istek gönder
+                var client = CreateClient(apiKey);
                 var selectedModel = SettingsService.GetSelectedModel();
-                var response = await httpClient.PostAsync($"{API_URL_BASE}/{selectedModel}:generateContent?key={apiKey}", content);
 
-                if (!response.IsSuccessStatusCode)
+                var response = await client.Models.GenerateContentAsync(
+                    model: selectedModel,
+                    contents: LocalizationService.Get("Prompts.TitleGen", questionText)
+                );
+
+                string? rawText = ExtractText(response);
+                LogHelper.LogDebug($"Gemini Title yanıtı: {rawText}");
+
+                if (rawText != null)
                 {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    LogHelper.LogError($"API hatası: HTTP {(int)response.StatusCode} - {errorContent}");
-                    return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
+                    var cleanTitle = CleanTitle(rawText);
+
+                    // Başlık çok uzunsa kısalt
+                    if (cleanTitle.Length > 50)
+                    {
+                        cleanTitle = cleanTitle.Substring(0, 47) + "...";
+                    }
+
+                    LogHelper.LogInfo($"Üretilen başlık: {cleanTitle}");
+                    return cleanTitle;
                 }
 
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                LogHelper.LogDebug($"Gemini Title yanıtı: {jsonResponse}");
-
-                var cleanTitle = CleanTitle(jsonResponse);
-
-                // Başlık çok uzunsa kısalt
-                if (cleanTitle.Length > 50)
-                {
-                    cleanTitle = cleanTitle.Substring(0, 47) + "...";
-                }
-
-                LogHelper.LogInfo($"Üretilen başlık: {cleanTitle}");
-                return cleanTitle;
+                return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
             }
             catch (Exception ex)
             {
@@ -598,19 +508,10 @@ namespace QSolver
             }
         }
 
-        private string CleanTitle(string response)
+        private string CleanTitle(string content)
         {
             try
             {
-                // JSON response'u parse et
-                var jsonDoc = JsonDocument.Parse(response);
-                var content = jsonDoc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text")
-                    .GetString() ?? "";
-
                 // Gereksiz karakterleri temizle
                 content = content.Trim()
                     .Replace("\"", "")
@@ -641,6 +542,54 @@ namespace QSolver
             {
                 return $"Soru - {DateTime.Now:dd.MM.yyyy HH:mm}";
             }
+        }
+
+        /// <summary>
+        /// API'den kullanılabilir modelleri listeler (generateContent destekleyenler)
+        /// </summary>
+        public static async Task<List<string>> FetchAvailableModelsAsync(string apiKey)
+        {
+            var models = new List<string>();
+            try
+            {
+                var client = new Client(apiKey: apiKey);
+                var pager = await client.Models.ListAsync();
+
+                await foreach (var model in pager)
+                {
+                    if (model.SupportedActions?.Contains("generateContent") == true &&
+                        model.Name != null)
+                    {
+                        // "models/" prefix'ini kaldır
+                        string modelName = model.Name.StartsWith("models/")
+                            ? model.Name.Substring(7)
+                            : model.Name;
+
+                        // Sadece Gemini modellerini dahil et
+                        if (!modelName.StartsWith("gemini", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        // Soru çözmeyle alakasız modelleri filtrele
+                        string lower = modelName.ToLowerInvariant();
+                        if (lower.Contains("tts") ||
+                            lower.Contains("image") ||
+                            lower.Contains("robotics") ||
+                            lower.Contains("computer-use") ||
+                            lower.Contains("embedding") ||
+                            lower.Contains("-latest") ||
+                            lower.Contains("-001") ||
+                            lower.Contains("customtc"))
+                            continue;
+
+                        models.Add(modelName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError("Model listesi alınırken hata oluştu", ex);
+            }
+            return models;
         }
     }
 }

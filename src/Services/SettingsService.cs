@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace QSolver
 {
@@ -8,6 +10,7 @@ namespace QSolver
         public string SelectedModel { get; set; } = "gemini-2.5-flash";
         public bool TurboMode { get; set; } = false;
         public string? DismissedUpdateVersion { get; set; } = null;
+        public List<string> CachedModels { get; set; } = new();
     }
 
     public class SettingsService : JsonConfigService<AppSettings>
@@ -51,17 +54,40 @@ namespace QSolver
             Instance.SaveData();
         }
 
-        public static string[] GetAvailableModels()
+        /// <summary>
+        /// Varsayılan (fallback) model listesi - API'ye ulaşılamadığında kullanılır
+        /// </summary>
+        public static string[] GetFallbackModels()
         {
             return new string[]
             {
-                "gemini-3-pro-preview",    // En akıllı model - Multimodal ve agentic
-                "gemini-2.5-flash",        // Hızlı ve akıllı - Fiyat/performans dengesi
-                "gemini-2.5-flash-lite",   // Ultra hızlı - Maliyet odaklı
-                "gemini-2.5-pro",          // Gelişmiş düşünme - Kompleks problemler
-                "gemini-2.0-flash",        // 2. nesil workhorse
-                "gemini-2.0-flash-lite"    // 2. nesil hızlı model
+                "gemini-3-pro-preview",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+                "gemini-2.5-pro",
+                "gemini-2.0-flash",
+                "gemini-2.0-flash-lite"
             };
+        }
+
+        /// <summary>
+        /// Önbelleğe alınmış modelleri döndürür, yoksa fallback
+        /// </summary>
+        public static List<string> GetCachedModels()
+        {
+            if (Instance.Data.CachedModels.Count > 0)
+                return Instance.Data.CachedModels;
+
+            return new List<string>(GetFallbackModels());
+        }
+
+        /// <summary>
+        /// Model listesini önbelleğe kaydeder
+        /// </summary>
+        public static void SetCachedModels(List<string> models)
+        {
+            Instance.Data.CachedModels = models;
+            Instance.SaveData();
         }
     }
 }

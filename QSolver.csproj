@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,9 +8,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsFormsHighDpiAutoResizing>true</EnableWindowsFormsHighDpiAutoResizing>
     <ApplicationIcon>Resources\qsolver.ico</ApplicationIcon>
-    <Version>1.5.5</Version>
-    <AssemblyVersion>1.5.5</AssemblyVersion>
-    <FileVersion>1.5.5</FileVersion>
+    <Version>1.6.0</Version>
+    <AssemblyVersion>1.6.0</AssemblyVersion>
+    <FileVersion>1.6.0</FileVersion>
     <Company>QSolver</Company>
     <Product>QSolver</Product>
     <Description>AI-powered question solver from screenshots</Description>
@@ -41,6 +41,9 @@
     <Content Include="Languages\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.GenAI" Version="1.6.1" />
   </ItemGroup>
 
   <!-- Release konfigürasyonu için tek dosya ayarları -->

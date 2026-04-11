@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using QSolver.Services;
 
@@ -14,11 +15,14 @@ namespace QSolver.Forms
         private Label modelLabel = null!;
         private Label languageLabel = null!;
         private CheckBox turboModeCheckBox = null!;
+        private Button refreshModelsButton = null!;
 
         public SettingsForm()
         {
             InitializeComponent();
             LoadSettings();
+            // Arkaplanda modelleri güncelle
+            _ = RefreshModelsAsync(silent: true);
         }
 
         private void InitializeComponent()
@@ -58,12 +62,23 @@ namespace QSolver.Forms
                 FlatStyle = FlatStyle.Flat
             };
 
-            // Populate model combo box
-            var availableModels = SettingsService.GetAvailableModels();
-            foreach (var model in availableModels)
+            // Refresh models button
+            refreshModelsButton = new Button
             {
-                modelComboBox.Items.Add(model);
-            }
+                Text = "⟳",
+                Location = new Point(335, 26),
+                Size = new Size(30, 25),
+                BackColor = Color.FromArgb(62, 62, 66),
+                ForeColor = Color.FromArgb(241, 241, 241),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand
+            };
+            refreshModelsButton.FlatAppearance.BorderSize = 0;
+            refreshModelsButton.Click += async (sender, e) => await RefreshModelsAsync(silent: false);
+
+            // Populate model combo box (önbellekten veya fallback)
+            PopulateModelComboBox();
 
             // Language label
             languageLabel = new Label
@@ -199,6 +214,7 @@ namespace QSolver.Forms
             // Add controls to form
             this.Controls.Add(modelLabel);
             this.Controls.Add(modelComboBox);
+            this.Controls.Add(refreshModelsButton);
             this.Controls.Add(languageLabel);
             this.Controls.Add(languageComboBox);
             this.Controls.Add(turboModeCheckBox);
@@ -206,6 +222,102 @@ namespace QSolver.Forms
             this.Controls.Add(cancelButton);
 
             this.ResumeLayout(false);
+        }
+
+        private void PopulateModelComboBox()
+        {
+            modelComboBox.Items.Clear();
+            var models = SettingsService.GetCachedModels();
+            foreach (var model in models)
+            {
+                modelComboBox.Items.Add(model);
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshModelsAsync(bool silent)
+        {
+            var apiKeys = ApiKeyManager.GetAllApiKeys();
+            if (apiKeys.Count == 0)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(
+                        LocalizationService.Get("App.NoApiKey"),
+                        LocalizationService.Get("Common.Warning"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                return;
+            }
+
+            refreshModelsButton.Enabled = false;
+            refreshModelsButton.Text = "…";
+
+            try
+            {
+                var models = await GeminiService.FetchAvailableModelsAsync(apiKeys[0]);
+                if (models.Count > 0)
+                {
+                    SettingsService.SetCachedModels(models);
+
+                    if (this.InvokeRequired)
+                    {
+                        this.Invoke(new Action(() => UpdateModelComboBox(models)));
+                    }
+                    else
+                    {
+                        UpdateModelComboBox(models);
+                    }
+                }
+            }
+            catch
+            {
+                // Sessizce fallback'te kal
+            }
+            finally
+            {
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        refreshModelsButton.Enabled = true;
+                        refreshModelsButton.Text = "⟳";
+                    }));
+                }
+                else
+                {
+                    refreshModelsButton.Enabled = true;
+                    refreshModelsButton.Text = "⟳";
+                }
+            }
+        }
+
+        private void UpdateModelComboBox(System.Collections.Generic.List<string> models)
+        {
+            var currentSelection = modelComboBox.SelectedItem?.ToString();
+            modelComboBox.Items.Clear();
+            foreach (var model in models)
+            {
+                modelComboBox.Items.Add(model);
+            }
+
+            // Önceki seçimi koru
+            if (currentSelection != null && modelComboBox.Items.Contains(currentSelection))
+            {
+                modelComboBox.SelectedItem = currentSelection;
+            }
+            else if (modelComboBox.Items.Count > 0)
+            {
+                // Varsayılan modeli seçmeye çalış
+                var defaultModel = SettingsService.GetSelectedModel();
+                if (modelComboBox.Items.Contains(defaultModel))
+                {
+                    modelComboBox.SelectedItem = defaultModel;
+                }
+                else
+                {
+                    modelComboBox.SelectedIndex = 0;
+                }
+            }
         }
 
         private void LoadSettings()
