@@ -98,7 +98,7 @@ namespace QSolver
                     LectureTr = lectureTr,
                     Lecture = LocalizationService.IsTurkish ? lectureTr : lectureEn,
                     QuestionTitle = title,
-                    QuestionText = wasTurboMode ? "Turbo Mode - Doğrudan çözüm" : questionText,
+                    QuestionText = wasTurboMode ? (LocalizationService.IsTurkish ? "Turbo Mode - Doğrudan çözüm" : "Turbo Mode - Direct solution") : questionText,
                     Answer = answer,
                     SolutionSteps = solutionSteps,
                     UsedModel = SettingsService.GetSelectedModel(),

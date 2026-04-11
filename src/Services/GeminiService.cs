@@ -291,7 +291,7 @@ namespace QSolver
                             if (solutionResult != null)
                             {
                                 string fullResponse = solutionResult.explanation;
-                                string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : "Çözülemedi";
+                                string answer = solutionResult.solved ? solutionResult.answers.ToUpper() : (LocalizationService.IsTurkish ? "Çözülemedi" : "Unsolved");
                                 string lectureEn = solutionResult.lecture_en ?? "";
                                 string lectureTr = solutionResult.lecture_tr ?? "";
                                 LogHelper.LogInfo($"Soru çözüm sonucu: {fullResponse}");
@@ -302,7 +302,7 @@ namespace QSolver
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata", "", "");
+                        return (LocalizationService.IsTurkish ? "Yanıt işlenemedi." : "Response could not be processed.", LocalizationService.IsTurkish ? "Hata" : "Error", "", "");
                     }
                     catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
                     {
@@ -421,8 +421,8 @@ namespace QSolver
                             if (turboResult != null)
                             {
                                 // Turbo modda explanation yok, sadece "Turbo Mode" yazılır
-                                string fullResponse = "Turbo Mode - Hızlı çözüm";
-                                string answer = turboResult.solved ? turboResult.answers.ToUpper() : "Çözülemedi";
+                                string fullResponse = LocalizationService.IsTurkish ? "Turbo Mode - Hızlı çözüm" : "Turbo Mode - Fast solution";
+                                string answer = turboResult.solved ? turboResult.answers.ToUpper() : (LocalizationService.IsTurkish ? "Çözülemedi" : "Unsolved");
                                 string title = !string.IsNullOrEmpty(turboResult.title)
                                     ? (turboResult.title.Length > 50 ? turboResult.title.Substring(0, 47) + "..." : turboResult.title)
                                     : $"Turbo - {DateTime.Now:HH:mm}";
@@ -434,7 +434,7 @@ namespace QSolver
                         }
 
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
-                        return ("Yanıt işlenemedi.", "Hata", "Çözülemeyen Soru", "", "");
+                        return (LocalizationService.IsTurkish ? "Yanıt işlenemedi." : "Response could not be processed.", LocalizationService.IsTurkish ? "Hata" : "Error", LocalizationService.IsTurkish ? "Çözülemeyen Soru" : "Unsolved Question", "", "");
                     }
                     catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
                     {
