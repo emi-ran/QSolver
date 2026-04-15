@@ -190,6 +190,7 @@ namespace QSolver.Services
                 { "Result.Answer", "Answer" },
                 { "Result.Answers", "Answers" },
                 { "Result.Lecture", "Lecture" },
+                { "Result.HighDemandError", "The model is currently under high demand. Up to 3 attempts were made, please try again shortly." },
                 
                 // History
                 { "History.Title", "QSolver - Solution History" },

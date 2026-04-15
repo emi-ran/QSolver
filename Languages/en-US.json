@@ -111,6 +111,7 @@
   "Result.DirectSolveError": "Error during direct solution",
   "Result.RetryMessage": "Invalid request, retrying...",
   "Result.ApiRequestError": "Error during API request",
+  "Result.HighDemandError": "The model is currently under high demand. Up to 3 attempts were made, please try again shortly.",
 
   "Prompts.Analysis": "Analyze this image.\n\nIf the image contains a QUESTION and CHOICES (A, B, C, D, E):\n- Read the question text\n- Write each line and choice on a separate line\n- Preserve original layout\n\nIf NO question or choices found:\n- Just write: {\"question_not_found\": true}\n\nDo not add explanations, return only text or JSON.",
   "Prompts.Solve": "You are a question solving AI. ALWAYS respond in ENGLISH.\n\nIMPORTANT: If text is NOT A QUESTION or has NO choices:\n- solved: false\n- answers: empty\n- title: 'Question not found'\n- explanation: 'This text does not contain a question.'\n\nIf text is a question with choices:\n- Sort answers by QUESTION NUMBER for multiple questions\n- For single question write choice letter in 'answers' (e.g. 'A')\n- For multiple questions separate with comma (e.g. 'A,B,C')\n- In explanation write step-by-step solution in ENGLISH markdown\n- Write short title (max 50 chars)\n- lecture_en: lecture name in ENGLISH (e.g. Mathematics, Physics, Chemistry)\n- lecture_tr: lecture name in TURKISH (e.g. Matematik, Fizik, Kimya)",

@@ -6,11 +6,11 @@ Türkçe | [English](README.md)
 
 **Yapay zeka destekli soru çözücü**
 
-[![Sürüm](https://img.shields.io/badge/sürüm-1.6.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0)
+[![Sürüm](https://img.shields.io/badge/sürüm-1.6.1-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/emi-ran/QSolver)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-[📥 v1.6.0 İndir](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0)
+[📥 v1.6.1 İndir](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1)
 
 </div>
 
@@ -33,6 +33,7 @@ QSolver, ekranınızdaki soruları yakalayıp yapay zeka ile çözen bir Windows
 | 📚 **Ders Algılama**      | Otomatik ders kategorisi (Matematik, Fizik vb.) |
 | 📜 **Çözüm Geçmişi**      | Tüm çözümlerini görüntüle ve ara                |
 | 🔑 **Çoklu API Anahtarı** | Birden fazla API anahtarı yönetimi              |
+| 🚦 **Deneme Sınırı**      | Geçici AI yoğunluğunda 3 denemeden sonra bilgi verir |
 | 🎨 **Koyu Tema**          | Akıcı animasyonlarla modern arayüz              |
 
 ## 📸 Ekran Görüntüleri
@@ -70,7 +71,7 @@ Birden fazla API anahtarı ekle ve doğrula:
 
 ### Adımlar
 
-1. [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0) sayfasından `QSolver.exe` dosyasını indirin
+1. [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1) sayfasından `QSolver.exe` dosyasını indirin
 2. Uygulamayı çalıştırın
 3. Sistem tepsisi menüsünden Gemini API anahtarınızı ekleyin
 4. Soru çözmeye başlayın!

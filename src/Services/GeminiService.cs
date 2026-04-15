@@ -17,6 +17,7 @@ namespace QSolver
 {
     public class GeminiService
     {
+        private const int MaxTransientRetryAttempts = 3;
         private string apiKey;
 
         public GeminiService(string? apiKey)
@@ -121,6 +122,24 @@ namespace QSolver
             return part?.Text;
         }
 
+        private static bool IsTransientCapacityError(Exception ex)
+        {
+            string message = ex.Message;
+            return message.Contains("429", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("high demand", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ReachedTransientRetryLimit(int transientFailureCount, int apiKeyCount)
+        {
+            return transientFailureCount >= Math.Min(MaxTransientRetryAttempts, apiKeyCount);
+        }
+
+        private static Exception CreateTransientCapacityException()
+        {
+            return new Exception(LocalizationService.Get("Result.HighDemandError"));
+        }
+
         public async Task<string> AnalyzeImage(string base64Image)
         {
             try
@@ -128,6 +147,7 @@ namespace QSolver
                 LogHelper.LogInfo("Görsel analiz ediliyor...");
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
+                int transientFailureCount = 0;
 
                 // Tüm API anahtarlarını al
                 var allApiKeys = ApiKeyManager.GetAllApiKeys();
@@ -201,11 +221,19 @@ namespace QSolver
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return "Yanıt işlenemedi. API yanıtı beklenen formatta değil.";
                     }
-                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    catch (Exception ex) when (IsTransientCapacityError(ex))
                     {
                         triedKeys.Add(currentKey);
-                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        transientFailureCount++;
+                        lastException = ex;
+                        LogHelper.LogError($"Geçici API kapasite hatası: {currentKey.Substring(0, 5)}... (deneme {transientFailureCount})", ex);
+
+                        if (ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                        {
+                            LogHelper.LogWarning("Görsel analizi yoğun istek nedeniyle durduruldu; kullanıcıya bilgi verilecek");
+                            throw CreateTransientCapacityException();
+                        }
+
                         continue;
                     }
                     catch (Exception ex)
@@ -220,6 +248,11 @@ namespace QSolver
                 // Tüm anahtarlar denenmiş ve başarısız olmuşsa
                 if (lastException != null)
                 {
+                    if (IsTransientCapacityError(lastException) && ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                    {
+                        throw CreateTransientCapacityException();
+                    }
+
                     throw lastException;
                 }
 
@@ -239,6 +272,7 @@ namespace QSolver
                 LogHelper.LogInfo("Soru çözülüyor...");
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
+                int transientFailureCount = 0;
 
                 // Mevcut dersleri al (her iki dilde)
                 var availableLecturesEn = SolutionHistoryService.GetAvailableLecturesEn();
@@ -304,11 +338,19 @@ namespace QSolver
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return (LocalizationService.IsTurkish ? "Yanıt işlenemedi." : "Response could not be processed.", LocalizationService.IsTurkish ? "Hata" : "Error", "", "");
                     }
-                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    catch (Exception ex) when (IsTransientCapacityError(ex))
                     {
                         triedKeys.Add(currentKey);
-                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        transientFailureCount++;
+                        lastException = ex;
+                        LogHelper.LogError($"Geçici API kapasite hatası: {currentKey.Substring(0, 5)}... (deneme {transientFailureCount})", ex);
+
+                        if (ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                        {
+                            LogHelper.LogWarning("Soru çözümü yoğun istek nedeniyle durduruldu; kullanıcıya bilgi verilecek");
+                            throw CreateTransientCapacityException();
+                        }
+
                         continue;
                     }
                     catch (Exception ex)
@@ -323,6 +365,11 @@ namespace QSolver
                 // Tüm anahtarlar denenmiş ve başarısız olmuşsa
                 if (lastException != null)
                 {
+                    if (IsTransientCapacityError(lastException) && ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                    {
+                        throw CreateTransientCapacityException();
+                    }
+
                     throw lastException;
                 }
 
@@ -342,6 +389,7 @@ namespace QSolver
                 LogHelper.LogInfo("Soru görsel üzerinden doğrudan çözülüyor...");
                 List<string> triedKeys = new List<string>();
                 Exception? lastException = null;
+                int transientFailureCount = 0;
 
                 // Mevcut dersleri al (her iki dilde)
                 var availableLecturesEn = SolutionHistoryService.GetAvailableLecturesEn();
@@ -436,11 +484,19 @@ namespace QSolver
                         LogHelper.LogWarning("API yanıtı beklenen formatta değil");
                         return (LocalizationService.IsTurkish ? "Yanıt işlenemedi." : "Response could not be processed.", LocalizationService.IsTurkish ? "Hata" : "Error", LocalizationService.IsTurkish ? "Çözülemeyen Soru" : "Unsolved Question", "", "");
                     }
-                    catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("RESOURCE_EXHAUSTED"))
+                    catch (Exception ex) when (IsTransientCapacityError(ex))
                     {
                         triedKeys.Add(currentKey);
-                        lastException = new Exception($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
-                        LogHelper.LogError($"API kotası aşıldı: {currentKey.Substring(0, 5)}...");
+                        transientFailureCount++;
+                        lastException = ex;
+                        LogHelper.LogError($"Geçici API kapasite hatası: {currentKey.Substring(0, 5)}... (deneme {transientFailureCount})", ex);
+
+                        if (ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                        {
+                            LogHelper.LogWarning("Doğrudan çözüm yoğun istek nedeniyle durduruldu; kullanıcıya bilgi verilecek");
+                            throw CreateTransientCapacityException();
+                        }
+
                         continue;
                     }
                     catch (Exception ex)
@@ -455,6 +511,11 @@ namespace QSolver
                 // Tüm anahtarlar denenmiş ve başarısız olmuşsa
                 if (lastException != null)
                 {
+                    if (IsTransientCapacityError(lastException) && ReachedTransientRetryLimit(transientFailureCount, allApiKeys.Count))
+                    {
+                        throw CreateTransientCapacityException();
+                    }
+
                     throw lastException;
                 }
 

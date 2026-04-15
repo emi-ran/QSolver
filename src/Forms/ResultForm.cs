@@ -470,6 +470,9 @@ namespace QSolver
                 // Hata durumunda UI'ı güncelle
                 answerLetter = $"Hata oluştu: {ex.Message}";
                 solutionText = QSolver.Services.LocalizationService.Get("Result.DirectSolveError");
+                string errorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                    ? QSolver.Services.LocalizationService.Get("Result.SolveError")
+                    : ex.Message;
 
                 if (this.IsHandleCreated)
                 {
@@ -477,11 +480,11 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.SolveError");
+                        resultLabel.Text = errorMessage;
                         resultLabel.Visible = true;
                         confirmButton.Text = QSolver.Services.LocalizationService.Get("Common.OK");
                         confirmButton.Visible = true;
-                        solutionStepsButton.Visible = true;
+                        solutionStepsButton.Visible = false;
 
                         currentState = FormState.Solved;
                     });
@@ -585,6 +588,9 @@ namespace QSolver
                 // Hata durumunda UI'ı güncelle
                 solutionText = $"Hata oluştu: {ex.Message}";
                 answerLetter = "Hata";
+                string errorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                    ? QSolver.Services.LocalizationService.Get("Result.SolveError")
+                    : ex.Message;
 
                 if (this.IsHandleCreated)
                 {
@@ -592,9 +598,10 @@ namespace QSolver
                     {
                         animationTimer.Stop();
                         thinkingLabel.Visible = false;
-                        resultLabel.Text = QSolver.Services.LocalizationService.Get("Result.SolveError");
+                        resultLabel.Text = errorMessage;
                         resultLabel.Visible = true;
                         confirmButton.Visible = true;
+                        solutionStepsButton.Visible = false;
 
                         currentState = FormState.Solved;
                     });

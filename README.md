@@ -6,11 +6,11 @@
 
 **AI-powered question solver for Windows**
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0)
+[![Version](https://img.shields.io/badge/version-1.6.1-blue.svg)](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/emi-ran/QSolver)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
-[📥 Download v1.6.0](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0)
+[📥 Download v1.6.1](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1)
 
 </div>
 
@@ -33,6 +33,7 @@ QSolver is a Windows application that captures questions from your screen and so
 | 📚 **Subject Detection** | Automatic subject categorization (Math, Physics, etc.) |
 | 📜 **Solution History**  | Browse all your previous solutions                     |
 | 🔑 **Multi API Key**     | Manage multiple API keys with validation               |
+| 🚦 **Retry Limit**       | Stops after 3 temporary AI busy failures and informs you |
 | 🎨 **Dark Theme**        | Modern UI with smooth animations                       |
 
 ## 📸 Screenshots
@@ -70,7 +71,7 @@ Add and validate multiple API keys:
 
 ### Steps
 
-1. Download `QSolver.exe` from [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.6.0)
+1. Download `QSolver.exe` from [Releases](https://github.com/emi-ran/QSolver/releases/tag/v1.6.1)
 2. Run the application
 3. Add your Gemini API key from the tray menu
 4. Start solving questions!
