@@ -632,10 +632,6 @@ namespace QSolver
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing && currentState != FormState.Solved)
-            {
-                MessageBox.Show(QSolver.Services.LocalizationService.Get("App.Exit"), QSolver.Services.LocalizationService.Get("Common.Info"), MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
             base.OnFormClosing(e);
         }
 
@@ -653,7 +649,7 @@ namespace QSolver
                         isTurboMode,
                         lectureEnText,
                         lectureTrText,
-                        questionText  // Başlık olarak questionText kullan
+                        isTurboMode ? questionText : string.Empty
                     );
                 }
             }

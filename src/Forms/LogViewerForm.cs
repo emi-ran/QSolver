@@ -115,7 +115,12 @@ namespace QSolver.Forms
             try
             {
                 _logTextBox.Clear();
-                string logContent = File.ReadAllText(LogHelper.LogFile, Encoding.UTF8);
+                string logContent = string.Empty;
+                using (var fs = new FileStream(LogHelper.LogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var reader = new StreamReader(fs, Encoding.UTF8))
+                {
+                    logContent = reader.ReadToEnd();
+                }
                 ColorizeAndAppendLogs(logContent);
             }
             catch (Exception ex)

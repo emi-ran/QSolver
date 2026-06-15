@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows.Forms;
 using QSolver.Services;
+using QSolver.Helpers;
 
 namespace QSolver
 {
@@ -45,11 +46,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"{LocalizationService.Get(LoadErrorKey)}: {ex.Message}",
-                    LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                LogHelper.LogError($"{LocalizationService.Get(LoadErrorKey)}", ex);
                 Data = new T();
             }
         }
@@ -65,11 +62,7 @@ namespace QSolver
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"{LocalizationService.Get(SaveErrorKey)}: {ex.Message}",
-                    LocalizationService.Get("Common.Error"),
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                LogHelper.LogError($"{LocalizationService.Get(SaveErrorKey)}", ex);
             }
         }
     }

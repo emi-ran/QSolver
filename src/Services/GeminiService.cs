@@ -165,7 +165,6 @@ namespace QSolver
 
                     try
                     {
-                        apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
                         var client = CreateClient(currentKey);
@@ -292,7 +291,6 @@ namespace QSolver
 
                     try
                     {
-                        apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
                         // Prompt'a mevcut dersleri ekle
@@ -411,7 +409,6 @@ namespace QSolver
 
                     try
                     {
-                        apiKey = currentKey;
                         LogHelper.LogDebug($"API anahtarı deneniyor: {currentKey.Substring(0, 5)}...");
 
                         // Prompt'a mevcut dersleri ekle
@@ -534,7 +531,8 @@ namespace QSolver
             {
                 LogHelper.LogInfo("Soru başlığı üretiliyor...");
 
-                var client = CreateClient(apiKey);
+                string currentKey = string.IsNullOrEmpty(this.apiKey) ? ApiKeyManager.GetRandomApiKey() : this.apiKey;
+                var client = CreateClient(currentKey);
                 var selectedModel = SettingsService.GetSelectedModel();
 
                 var response = await client.Models.GenerateContentAsync(

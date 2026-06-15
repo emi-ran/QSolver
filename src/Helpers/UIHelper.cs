@@ -16,12 +16,19 @@ namespace QSolver.Helpers
             int nRightRect, int nBottomRect,
             int nWidthEllipse, int nHeightEllipse);
 
+        [DllImport("gdi32.dll", EntryPoint = "DeleteObject")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeleteObject(IntPtr hObject);
+
         /// <summary>
         /// Creates a rounded region for a control.
         /// </summary>
         public static Region CreateRoundedRegion(int width, int height, int radius = 10)
         {
-            return Region.FromHrgn(CreateRoundRectRgn(0, 0, width, height, radius, radius));
+            IntPtr hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
+            Region region = Region.FromHrgn(hrgn);
+            DeleteObject(hrgn);
+            return region;
         }
 
         /// <summary>
@@ -93,11 +100,14 @@ namespace QSolver.Helpers
         /// </summary>
         public static void AddHoverEffect(Button button, int amount = 20)
         {
+            Color originalColor = button.BackColor;
+            Color hoverColor = DarkenColor(originalColor, amount);
+
             button.MouseEnter += (s, e) =>
             {
                 if (s is Button btn)
                 {
-                    btn.BackColor = DarkenColor(btn.BackColor, amount);
+                    btn.BackColor = hoverColor;
                 }
             };
 
@@ -105,7 +115,7 @@ namespace QSolver.Helpers
             {
                 if (s is Button btn)
                 {
-                    btn.BackColor = LightenColor(btn.BackColor, amount);
+                    btn.BackColor = originalColor;
                 }
             };
         }

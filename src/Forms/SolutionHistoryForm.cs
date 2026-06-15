@@ -326,10 +326,10 @@ namespace QSolver.Forms
             {
                 try
                 {
-                    // Dosyayı memory'ye kopyala, böylece dosya kilidi olmaz
-                    using (var fileStream = new FileStream(selectedItem.ScreenshotPath, FileMode.Open, FileAccess.Read))
+                    // Dosya kilidinin hemen kalkması için Bitmap kopyası oluşturuyoruz
+                    using (var tempImage = Image.FromFile(selectedItem.ScreenshotPath))
                     {
-                        screenshotPictureBox.Image = Image.FromStream(fileStream);
+                        screenshotPictureBox.Image = new Bitmap(tempImage);
                     }
                 }
                 catch
@@ -387,9 +387,6 @@ namespace QSolver.Forms
                     // Seçili öğeyi temizle (resim dosyası kilitini kaldır)
                     ClearDetailPanel();
 
-                    // Biraz bekle ki dosya kilidi tamamen kalksin
-                    System.Threading.Thread.Sleep(100);
-
                     SolutionHistoryService.DeleteHistoryItem(selectedItem.Id);
                     LoadHistory();
                 }
@@ -408,9 +405,6 @@ namespace QSolver.Forms
             {
                 // Tüm görselleri temizle
                 ClearDetailPanel();
-
-                // Biraz bekle ki dosya kilitleri tamamen kalksın
-                System.Threading.Thread.Sleep(100);
 
                 SolutionHistoryService.ClearHistory();
                 LoadHistory();

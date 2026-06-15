@@ -124,20 +124,40 @@ namespace QSolver
 
             webBrowser.DocumentText = htmlContent;
 
+            // Alt panel (kapat butonu için)
+            var buttonPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                BackColor = Color.FromArgb(45, 45, 48)
+            };
+
             // Kapat butonu
             var closeButton = new Button
             {
                 Text = QSolver.Services.LocalizationService.Get("Common.Close"),
                 Width = 100,
                 Height = 30,
-                Dock = DockStyle.Bottom,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+                Location = new Point(this.ClientSize.Width - 120, 10),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F)
             };
+            closeButton.FlatAppearance.BorderSize = 0;
+            QSolver.Helpers.UIHelper.ApplyRoundedCorners(closeButton, 6);
             closeButton.Click += (s, e) => this.Close();
+            QSolver.Helpers.UIHelper.AddHoverEffect(closeButton, 20);
+
+            buttonPanel.Controls.Add(closeButton);
 
             // Kontrolleri forma ekle
             this.Controls.Add(webBrowser);
-            this.Controls.Add(closeButton);
+            this.Controls.Add(buttonPanel);
+
+            // Dock düzenini garantiye almak için
+            webBrowser.SendToBack();
 
             // Escape tuşu ile formu kapat
             this.KeyPreview = true;

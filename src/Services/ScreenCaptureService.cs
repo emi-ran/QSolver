@@ -89,7 +89,8 @@ namespace QSolver.Services
             captureForm = new DoubleBufferedForm
             {
                 FormBorderStyle = FormBorderStyle.None,
-                WindowState = FormWindowState.Maximized,
+                StartPosition = FormStartPosition.Manual,
+                Bounds = SystemInformation.VirtualScreen,
                 BackColor = Color.Black,
                 Opacity = 0,
                 Cursor = Cursors.Cross,
@@ -743,16 +744,7 @@ namespace QSolver.Services
 
         private Point CalculateResultFormLocation()
         {
-            Control? controlForScreen = captureForm ?? Form.ActiveForm;
-            if (controlForScreen == null && Application.OpenForms.Count > 0)
-            {
-                controlForScreen = Application.OpenForms[0];
-            }
-
-            Screen currentScreen = controlForScreen != null
-                ? Screen.FromControl(controlForScreen)
-                : Screen.PrimaryScreen ?? Screen.AllScreens[0];
-
+            Screen currentScreen = Screen.FromRectangle(selectionRect);
             Rectangle screenBounds = currentScreen.WorkingArea;
 
             int x = screenBounds.Right - 250;
@@ -761,7 +753,7 @@ namespace QSolver.Services
                 x = selectionRect.Right - 125;
             }
 
-            int y = screenBounds.Height / 2 - 60;
+            int y = screenBounds.Y + screenBounds.Height / 2 - 60;
 
             return new Point(x, y);
         }

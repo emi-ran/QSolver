@@ -37,8 +37,8 @@ namespace QSolver.Forms
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.BackColor = Color.FromArgb(45, 45, 48);
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            this.AutoScaleDimensions = new SizeF(96F, 96F);
 
             // Model label
             modelLabel = new Label
@@ -254,7 +254,23 @@ namespace QSolver.Forms
 
             try
             {
-                var models = await GeminiService.FetchAvailableModelsAsync(apiKeys[0]);
+                System.Collections.Generic.List<string> models = new System.Collections.Generic.List<string>();
+                foreach (var key in apiKeys)
+                {
+                    try
+                    {
+                        models = await GeminiService.FetchAvailableModelsAsync(key);
+                        if (models.Count > 0)
+                        {
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        // Sıradaki anahtarı dene
+                    }
+                }
+
                 if (models.Count > 0)
                 {
                     SettingsService.SetCachedModels(models);
@@ -267,6 +283,13 @@ namespace QSolver.Forms
                     {
                         UpdateModelComboBox(models);
                     }
+                }
+                else if (!silent)
+                {
+                    MessageBox.Show(
+                        "Modeller güncellenemedi. Lütfen API anahtarlarınızı kontrol edin.",
+                        LocalizationService.Get("Common.Error"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch
